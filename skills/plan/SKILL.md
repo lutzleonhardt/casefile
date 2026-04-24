@@ -118,10 +118,14 @@ extraction pattern anchors on `^## Task <number>`.
 > up-to-date context discovered during implementation, as long as
 > each task still satisfies the sizing rules above.
 >
-> When a task is finished (DONE or BLOCKED), run `/wrap-up` to
-> generate the summary, commit summary + code together in a
-> single commit, and optionally run `/review` (quick per-task,
-> full before a PR). Do not commit automatically.
+> When a task is finished (DONE or BLOCKED), close it with the
+> `/wrap-up N` → `/commit N` pair. `/wrap-up N` writes or extends
+> `docs/task-log/task-{N}-{slug}.md` and is safe to run multiple
+> times across sessions — it merges. `/commit N` reads that log,
+> stages code + summary, and commits them together after showing
+> the plan and waiting for confirmation. Optionally run `/review`
+> (quick per-task, full before a PR) between wrap-up and commit;
+> a second `/wrap-up N` can absorb the review findings.
 
 This keeps the plan a guide, not a straitjacket — and gives every
 `/start-task` run the closing checklist in its loaded context.

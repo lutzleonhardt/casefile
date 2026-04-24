@@ -1,26 +1,132 @@
 ---
 name: wrap-up
-description: Generate a structured task summary 
-  at the end of a completed or blocked task. 
-  For BLOCKED tasks, also evaluates escalation 
+description: Generate or extend a structured task summary
+  at the end of a completed or blocked task.
+  For BLOCKED tasks, also evaluates escalation
   triggers and proposes a re-plan.
 ---
 # Task Wrap-Up
 
 The task is finished (or has been declared blocked).
-Create a summary file at
-`docs/task-log/task-{N}-{YYYY-MM-DD}-{slug}.md`
+Write (or extend) the task summary file at
+`docs/task-log/task-{N}-{slug}.md`.
 
 - `{N}` = task number from the plan
-- `{YYYY-MM-DD}` = today's date (use `date +%Y-%m-%d`)
 - `{slug}` = short kebab-case description (e.g. `login-service`)
 
-If the `docs/task-log/` directory does not exist, 
-create it first.
+One task gets exactly one log file. No date in the filename —
+the date lives in git history (commit date) and optionally in
+session markers inside the file.
 
-If the task is NOT finished but the context is 
-filling up, use `/handoff` instead — this skill is 
-for completed or blocked tasks only.
+If the task is NOT finished but the context is filling up,
+use `/handoff` instead — this skill is for completed or
+blocked tasks only.
+
+## Task identity — `$ARGUMENTS`
+
+Use `$ARGUMENTS` to identify the task being closed
+(e.g. `/wrap-up 3` means Task 3). The skill must know
+the task number before it writes anything.
+
+Resolution rules, in order:
+
+1. If `$ARGUMENTS` contains a number, use that.
+2. Else, if this session was primed by `/start-task N`
+   (or an earlier `/wrap-up N` / `/commit N`) and N is
+   unambiguous in context, use N.
+3. Else, **stop** and tell the user:
+   > Task number required. Run as `/wrap-up N`.
+   Do not guess, do not scan the plan, do not write a file.
+
+Fresh sessions (review-fix, retroactive wrap-up, cross-session
+handoff) always need the explicit argument — session context
+alone is not enough.
+
+## Precondition — run BEFORE committing the task's code
+
+Wrap-up must happen **before** the task's code changes are
+committed. The intended flow is:
+
+1. Finish the code changes (do NOT commit yet).
+2. Run `/wrap-up N` → summary file is written (or extended).
+3. Run `/commit N` → commits code + summary together.
+
+If the task's code has already been committed when
+`/wrap-up N` is invoked, stop and tell the user:
+
+> Task-N code was already committed as `<hash>`. The
+> wrap-up summary belongs in that commit. Either:
+>
+>   (a) amend the commit to include the summary (only if
+>       the commit has not been pushed), or
+>
+>   (b) land the summary as a separate follow-up commit
+>       (`docs: task-N wrap-up summary`) and accept the
+>       broken single-commit rule for this task.
+
+Ask the user which option before writing the file, so the
+summary lands in the right commit from the start.
+
+## Log-file lookup — merge or fresh
+
+Before writing, check for an existing log:
+
+```
+ls docs/task-log/task-{N}-*.md 2>/dev/null
+```
+
+- **No file** — fresh write, normal path.
+- **Exactly one file** — read it, **merge** with the new
+  session's findings (see merge rules below). Show the user
+  the proposed merged file and wait for approval before
+  writing.
+- **Multiple files** — the filename convention was violated
+  in the past. Stop and tell the user; ask which file to
+  extend, or let them rename/consolidate manually before
+  continuing.
+
+## Merge rules (when a log file already exists)
+
+Read the existing file, then integrate the new session's
+output as follows:
+
+- **Task** (one-sentence summary): keep existing unless the
+  new session materially changes scope; if it does, rewrite
+  and flag the change.
+- **Status**: replace with the current status. If the prior
+  status was BLOCKED and the new status is DONE, drop the
+  Escalation Assessment and Re-Plan Proposal sections
+  entirely (they are historical noise once unblocked).
+- **Files Modified**: union the lists. If the same file
+  appears in both, keep the most informative reason or
+  merge both reasons on one line.
+- **Files Read (Context Only)**: union the lists.
+- **Key Decisions**: append new decisions under a session
+  marker (see below). Do not rewrite prior decisions — they
+  are part of the record.
+- **Test Evidence**: append new evidence under a session
+  marker. Accumulates across sessions.
+- **Open Issues**: merge; drop issues that are now resolved
+  (note them in the session marker if helpful).
+- **Context for Next Task**: replace with the current view —
+  this is forward-looking, not historical.
+- **Git State**: replace with current output of
+  `git diff --stat` and `git status --short`.
+
+### Session marker
+
+When a merge happens, append a short marker to the `Key
+Decisions` and/or `Test Evidence` sections to preserve
+temporal order. Format:
+
+```
+— session 2026-04-24
+```
+
+Use `date +%Y-%m-%d` to get the date. One marker per
+session-contribution, placed before the lines added by
+that session. Keeps the log readable without introducing
+a new top-level Session heading.
 
 ## Base summary structure (always):
 
@@ -33,18 +139,18 @@ If BLOCKED, explain why and what needs to happen
 to unblock. (For in-progress tasks, use `/handoff`.)
 
 ### Files Modified
-Each file with a one-line description of what 
+Each file with a one-line description of what
 changed and why. Format:
 - `path/to/file.ts` (new|modified|deleted) — reason
 
 ### Files Read (Context Only)
-Files that were read for understanding but NOT 
-modified. This helps the next session know what 
+Files that were read for understanding but NOT
+modified. This helps the next session know what
 context was used.
 
 ### Key Decisions
-Technical decisions made during this session and 
-the reasoning behind them. Include alternatives 
+Technical decisions made during this session and
+the reasoning behind them. Include alternatives
 that were considered and rejected.
 
 ### Test Evidence
@@ -56,7 +162,7 @@ What was tested and how. Include:
 ### Open Issues
 Unfinished work, known issues, open questions.
 Reference follow-up tasks where applicable.
-Format: "Issue description (→ Task N)" 
+Format: "Issue description (→ Task N)"
 
 ### Context for Next Task
 What the next session needs to know to continue.
@@ -73,28 +179,28 @@ Run these commands and include their output:
 
 ## Additional sections for BLOCKED tasks only:
 
-If Status is BLOCKED, also evaluate the escalation 
-triggers and produce a re-plan proposal. Append the 
+If Status is BLOCKED, also evaluate the escalation
+triggers and produce a re-plan proposal. Append the
 following sections to the summary:
 
 ### Escalation Assessment
 For each trigger, state: CLEAR | WARNING | TRIGGERED
 with evidence.
 
-1. **Scope creep:** `git diff --stat` — are more files 
-   modified than the plan specified? Which ones are 
+1. **Scope creep:** `git diff --stat` — are more files
+   modified than the plan specified? Which ones are
    outside planned scope?
-2. **API changes:** Has any public interface changed 
-   that was not planned? Check exports, function 
+2. **API changes:** Has any public interface changed
+   that was not planned? Check exports, function
    signatures, shared types.
-3. **Failed attempts:** How many implementation 
-   attempts? Check git log for reverts or repeated 
+3. **Failed attempts:** How many implementation
+   attempts? Check git log for reverts or repeated
    changes to the same files.
-4. **Test failures outside scope:** Are tests failing 
-   in modules not targeted by this task? 
+4. **Test failures outside scope:** Are tests failing
+   in modules not targeted by this task?
    Run the test suite and check.
-5. **Explainability:** Can you summarize what this 
-   task accomplished in 5 bullet points or fewer? 
+5. **Explainability:** Can you summarize what this
+   task accomplished in 5 bullet points or fewer?
    If not, scope is probably too large.
 
 ### Re-Plan Proposal
@@ -104,35 +210,28 @@ Based on the assessment, propose:
 - Updated task list with revised scope
 
 Then propose an updated plan patch for `docs/plans/`.
-Do NOT overwrite the old plan — the old version stays 
+Do NOT overwrite the old plan — the old version stays
 in git history. Write the revision as an edit.
 
 ## After generating the summary:
 
-Do **not** commit automatically. The user reviews 
-the diff and commits the summary together with the 
-task's code changes in a single commit.
+Do **not** commit. The commit is `/commit N`'s job.
 
 Tell the user:
-> Summary is ready at `docs/task-log/<filename>.md`.
-> Recommended commit (code + summary together):
-> 
-> ```bash
-> git add docs/task-log/<filename>.md <changed-source-files>
-> git commit -m "task-N: <one-line summary>"
-> ```
-> 
-> For BLOCKED with re-plan:
-> ```bash
-> git add docs/task-log/<filename>.md docs/plans/<plan-file> <any-code-kept>
-> git commit -m "replan: <reason> (task-N blocked)"
-> ```
-> 
-> Before committing, run `git status` and 
-> `git diff --cached` to verify only the intended 
-> changes are staged — no `git add -A`.
 
-The single-commit rule matters: the summary 
-describes *this exact code state*. Code and summary 
-should always live in the same commit so `git log` 
-shows one coherent story per task.
+> Summary is ready at `docs/task-log/task-{N}-{slug}.md`.
+> When you are done with this task's work, close it out with
+> `/commit {N}` — that reads this log, stages code + summary
+> together, and commits with a message derived from the log's
+> title and status.
+>
+> You can run `/wrap-up {N}` again from another session
+> before committing — findings are merged into this same
+> file.
+
+The single-commit rule still matters: the final committed
+summary describes *this exact code state*. `/wrap-up` builds
+the summary; `/commit` makes the atomic commit. Keeping them
+split lets you extend the summary across sessions without
+amend-dance, and the final commit still contains one coherent
+story per task.

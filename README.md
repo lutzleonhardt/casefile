@@ -1,12 +1,12 @@
 # Skill Kit: Agentic Workflow Skills
 
-Fünf Claude-Code-Skills für einen reproduzierbaren Agentic-Coding-Workflow: **Plan → Start-Task → Wrap-Up**, plus `/handoff` für Context-Engpässe und `/review` als Qualitäts-Check. Gedacht für Senior Developers, die mit Claude Code in Legacy-Enterprise-Codebasen arbeiten und ihr Senior Judgment behalten wollen — nicht wegautomatisieren. Installation: entweder per `git clone` + Copy, oder einfach _„Claude, lies die `README.md` in diesem Repo und leg die fünf Skills projekt-lokal an."_ (Details unten.)
+Sechs Claude-Code-Skills für einen reproduzierbaren Agentic-Coding-Workflow: **Plan → Start-Task → Wrap-Up → Commit**, plus `/handoff` für Context-Engpässe und `/review` als Qualitäts-Check. Gedacht für Senior Developers, die mit Claude Code in Legacy-Enterprise-Codebasen arbeiten und ihr Senior Judgment behalten wollen — nicht wegautomatisieren. Installation: entweder per `git clone` + Copy, oder einfach _„Claude, lies die `README.md` in diesem Repo und leg die Skills projekt-lokal an."_ (Details unten.)
 
 ---
 
 ## Pattern, keine Vorgabe
 
-Das hier ist **ein** Weg, nicht *der* Weg. Die fünf Skills sind die Form, in der *mein* Agentic Workflow am zuverlässigsten läuft — ich habe gute Erfahrungen damit gemacht, deshalb sind sie hier aufgeschrieben. Niemand ist darauf angewiesen, genau diese Skills in genau dieser Form zu übernehmen — auch nicht meine.
+Das hier ist **ein** Weg, nicht *der* Weg. Die sechs Skills sind die Form, in der *mein* Agentic Workflow am zuverlässigsten läuft — ich habe gute Erfahrungen damit gemacht, deshalb sind sie hier aufgeschrieben. Niemand ist darauf angewiesen, genau diese Skills in genau dieser Form zu übernehmen — auch nicht meine.
 
 Skills sind billig und trivial änderbar: eine Markdown-Datei, ein paar Zeilen YAML-Frontmatter, Aufruf über Slash-Command. Daraus folgt: **Bau dir deine eigenen**, entlang deiner eigenen Best Practices. Wer zum Beispiel streng nach Test-Driven Development arbeitet, modelliert Red/Green/Refactor als eigene Skills. Wer feste Release-Rituale hat, baut dafür einen. Wer in Pair-Programming-Mustern denkt, formalisiert die dort. Die Taktung und die Trigger-Wörter gehören dir.
 
@@ -24,7 +24,8 @@ project-root/
 │   └── skills/
 │       ├── plan/SKILL.md          # Spec → Task-Plan
 │       ├── start-task/SKILL.md    # Task-Bootstrap
-│       ├── wrap-up/SKILL.md       # Task-Ende & Re-Plan
+│       ├── wrap-up/SKILL.md       # Task-Summary schreiben / erweitern
+│       ├── commit/SKILL.md        # Summary + Code atomar committen
 │       ├── handoff/SKILL.md       # Context-Übergabe (Exception)
 │       └── review/SKILL.md        # Review-Brief
 ├── docs/
@@ -33,7 +34,7 @@ project-root/
 │   ├── plans/                     # Scope: Task-Reihenfolge (Output /plan, Input /start-task)
 │   │   └── <feature>.md
 │   └── task-log/                  # Protokoll: was tatsächlich passiert ist (Output /wrap-up)
-│       └── task-{N}-{YYYY-MM-DD}-{slug}.md
+│       └── task-{N}-{slug}.md
 ├── handoff.md                     # Temporär, gitignored (Output /handoff)
 └── .gitignore
 ```
@@ -46,7 +47,9 @@ project-root/
 
 **Datenfluss zwischen den Skills:**
 
-`docs/specs/X.md` → `/plan` → `docs/plans/X.md` → `/start-task N` → Implementierung → `/wrap-up` → `docs/task-log/task-N-...md` + Commit.
+`docs/specs/X.md` → `/plan` → `docs/plans/X.md` → `/start-task N` → Implementierung → `/wrap-up N` → `docs/task-log/task-N-{slug}.md` → `/commit N` → atomarer Commit (Code + Summary).
+
+`/wrap-up N` darf über mehrere Sessions hinweg mehrfach laufen — neue Findings werden in dieselbe Log-Datei gemerged, bis `/commit N` den Task abschließt.
 
 `/handoff` ist der Seitenausstieg bei Context-Knappheit (schreibt `handoff.md`), `/review` der Qualitäts-Check zwischendurch oder vor PR (schreibt nichts, produziert einen Brief an den Menschen).
 
@@ -59,7 +62,7 @@ Jeder Skill ist eine `SKILL.md`-Datei in einem eigenen Unterordner. Das Repo lie
 ### Option 1 — Claude liest die README und legt die Skills an (empfohlen)
 
 ```
-"Claude, lies die README.md in diesem Repo und leg die fünf Skills projekt-lokal unter .claude/skills/ an.
+"Claude, lies die README.md in diesem Repo und leg die sechs Skills projekt-lokal unter .claude/skills/ an.
 Lege außerdem docs/specs/, docs/plans/, docs/task-log/ an und ergänze handoff.md in .gitignore."
 ```
 
@@ -110,16 +113,17 @@ Task-Summaries gehören **nicht** in `.claude/` — sie sind Projekt-Dokumentati
 | ------------- | ------------- | -------------------------------------------------- | ------------------------------------------------------------------------ |
 | `/plan`       | Routine       | Spec → Plan (vor Task-Beginn)                      | "Plan spec X" / "Schneide spec X in Tasks"                               |
 | `/start-task` | Routine       | Task-Beginn                                        | "Starte Task N"                                                          |
-| `/wrap-up`    | Routine       | Task-Ende (DONE oder BLOCKED)                      | "Bin fertig" / "Task blockiert, re-plan"                                 |
+| `/wrap-up`    | Routine       | Task-Ende (DONE oder BLOCKED), auch mehrfach       | "Bin fertig" / "Task blockiert, re-plan"                                 |
+| `/commit`     | Routine       | Abschluss eines Tasks nach `/wrap-up`              | "Commit Task N"                                                          |
 | `/handoff`    | **Exception** | Context knapp *vor* Task-Ende, oder bewusste Pause | "Context wird knapp, Übergabe vorbereiten" / "Ich pausiere hier manuell" |
-| `/review`     | Routine       | Nach Task (quick) oder vor PR (full)               | "Review bitte" / "Review full"                                           |
+| `/review`     | Routine       | Zwischen `/wrap-up` und `/commit`, oder vor PR     | "Review bitte" / "Review full"                                           |
 
-**Wichtig — Routine vs. Exception:** `/wrap-up` ist der Normalabschluss jedes Tasks, `/handoff` die Ausnahme. Im Happy-Path kommt `/handoff` nie zum Einsatz. Du brauchst ihn nur, wenn (a) der Context-Verbrauch kritisch wird, bevor du den Task fertig hast, oder (b) du einen Task bewusst pausierst, um ihn manuell nachzuarbeiten. Beide Fälle sind Spezialfälle — in der Summe deutlich seltener als `/wrap-up`.
+**Wichtig — Routine vs. Exception:** `/wrap-up` + `/commit` sind der Normalabschluss jedes Tasks, `/handoff` die Ausnahme. Im Happy-Path kommt `/handoff` nie zum Einsatz. Du brauchst ihn nur, wenn (a) der Context-Verbrauch kritisch wird, bevor du den Task fertig hast, oder (b) du einen Task bewusst pausierst, um ihn manuell nachzuarbeiten. Beide Fälle sind Spezialfälle — in der Summe deutlich seltener als `/wrap-up`.
 
-**Minimales Setup:** `/wrap-up` allein bringt schon den meisten Wert. Der Rest ist optional und addiert sich inkrementell.
+**Minimales Setup:** `/wrap-up` allein bringt schon viel Wert — die Log-Datei entsteht, der manuelle `git commit` klappt danach mit Copy/Paste. `/commit` macht aus dem Paar eine klickfertige Einheit und erzwingt, dass der Staging-Satz 1:1 aus dem Log kommt. Der Rest ist optional und addiert sich inkrementell.
 
-**Empfohlene Reihenfolge beim Einführen:** `/wrap-up` → `/start-task` → `/plan` → `/review` → `/handoff`
-*(Der Exception-Skill `/handoff` zuletzt — wer die Routine-Skills nicht nutzt, braucht die Ausnahme erst recht nicht. `/plan` kommt bewusst erst nach `/start-task`: die Task-Seed-Kette trägt bereits ohne ihn, er veredelt sie nur um das front-loaded Sizing.)*
+**Empfohlene Reihenfolge beim Einführen:** `/wrap-up` → `/commit` → `/start-task` → `/plan` → `/review` → `/handoff`
+*(Der Exception-Skill `/handoff` zuletzt — wer die Routine-Skills nicht nutzt, braucht die Ausnahme erst recht nicht. `/plan` kommt bewusst erst nach `/start-task`: die Task-Seed-Kette trägt bereits ohne ihn, er veredelt sie nur um das front-loaded Sizing. `/commit` direkt nach `/wrap-up`, weil die beiden als Paar die meiste Ergonomie gewinnen.)*
 
 **Bewusst kein eigener Skill:**
 - **Re-Planning** ist in `/wrap-up` integriert. Wenn ein Task BLOCKED endet, liefert `/wrap-up` zusätzlich eine Escalation-Bewertung und einen Re-Plan-Vorschlag. Ein separater `/replan`-Skill wäre doppelt gemoppelt — ein BLOCKED-Task ohne Re-Plan-Gedanken ist eh sinnlos.
@@ -128,19 +132,31 @@ Task-Summaries gehören **nicht** in `.claude/` — sie sind Projekt-Dokumentati
 
 ### /wrap-up vs. /handoff — wann was?
 
-|               | `/wrap-up`                                                   | `/handoff`                                                   |
+|               | `/wrap-up` (+ `/commit`)                                     | `/handoff`                                                   |
 | ------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | **Situation** | Task ist fertig (oder blockiert)                             | Task ist nicht fertig, aber Context wird knapp               |
-| **Ergebnis**  | Task-Summary im Repo, gemeinsam mit Code committet           | Temporäre `handoff.md` für die nächste Session               |
+| **Ergebnis**  | Task-Summary im Repo, von `/commit` gemeinsam mit Code committet | Temporäre `handoff.md` für die nächste Session               |
 | **Danach**    | Nächster Task                                                | Gleicher Task fortsetzen in frischer Session                 |
-| **Datei**     | `docs/task-log/task-{N}-{YYYY-MM-DD}-{slug}.md` (persistent) | `handoff.md` im Projekt-Root (temporär, nach Erfolg löschen) |
-| **Analogie**  | Schichtprotokoll                                             | Staffelstab                                                  |
+| **Datei**     | `docs/task-log/task-{N}-{slug}.md` (persistent)              | `handoff.md` im Projekt-Root (temporär, nach Erfolg löschen) |
+| **Analogie**  | Schichtprotokoll + Übergabe zum Commit                       | Staffelstab                                                  |
+
+### Der Closing-Flow im Detail
+
+`/wrap-up N` schreibt oder **erweitert** `docs/task-log/task-{N}-{slug}.md`. Wird der Skill mehrfach für denselben Task aufgerufen (egal in welcher Session), merged er die neuen Findings in dieselbe Datei — keine Overwrites, kein Datenverlust, kein Date-in-Filename-Streit. Erst `/commit N` zieht den Schlussstrich: Skill liest das Log, baut Staging-Liste und Commit-Message daraus auf, zeigt den Plan, wartet auf Bestätigung, führt dann `git add` + `git commit` aus. Für DONE ein `task-N:`-Commit, für BLOCKED mit Re-Plan ein `replan:`-Commit.
+
+Damit ergeben sich mehrere legitime Rhythmen:
+
+- **Schnell** — `/start-task N` → Arbeit → `/wrap-up N` → `/commit N` → `/start-task N+1`.
+- **Mit Review** — `/start-task N` → Arbeit → `/wrap-up N` → `/review` → Fixes in frischer Session → `/wrap-up N` (merged) → `/commit N`.
+- **Über mehrere Sessions** — Session A: Teilarbeit + `/wrap-up N`. Session B: Rest + `/wrap-up N` (merged). `/commit N` dann wo es passt.
+
+Die Freiheit liegt im Split zwischen „Protokoll erweitern" und „committen". Solange kein Zwischen-Commit dazwischenfunkt, bleibt alles in einem atomaren Commit pro Task.
 
 ---
 
 ## 1. /plan
 
-Nimmt eine Spec (aus `docs/specs/`, Chat oder Issue) und schlägt einen passend geschnittenen Task-Plan für `docs/plans/` vor. Die Slicing-Regeln sind so gewählt, dass Plan-Entry und späterer `/wrap-up`-Commit denselben Standard teilen — *ein Task = ein kohärenter, testbarer Commit*.
+Nimmt eine Spec (aus `docs/specs/`, Chat oder Issue) und schlägt einen passend geschnittenen Task-Plan für `docs/plans/` vor. Die Slicing-Regeln sind so gewählt, dass Plan-Entry und späterer `/commit`-Commit denselben Standard teilen — *ein Task = ein kohärenter, testbarer Commit*.
 
 **Datei:** `.claude/skills/plan/SKILL.md` · [im Repo ansehen](./skills/plan/SKILL.md)
 
@@ -265,10 +281,14 @@ extraction pattern anchors on `^## Task <number>`.
 > up-to-date context discovered during implementation, as long as
 > each task still satisfies the sizing rules above.
 >
-> When a task is finished (DONE or BLOCKED), run `/wrap-up` to
-> generate the summary, commit summary + code together in a
-> single commit, and optionally run `/review` (quick per-task,
-> full before a PR). Do not commit automatically.
+> When a task is finished (DONE or BLOCKED), close it with the
+> `/wrap-up N` → `/commit N` pair. `/wrap-up N` writes or extends
+> `docs/task-log/task-{N}-{slug}.md` and is safe to run multiple
+> times across sessions — it merges. `/commit N` reads that log,
+> stages code + summary, and commits them together after showing
+> the plan and waiting for confirmation. Optionally run `/review`
+> (quick per-task, full before a PR) between wrap-up and commit;
+> a second `/wrap-up N` can absorb the review findings.
 
 This keeps the plan a guide, not a straitjacket — and gives every
 `/start-task` run the closing checklist in its loaded context.
@@ -289,7 +309,7 @@ This keeps the plan a guide, not a straitjacket — and gives every
 
 ### Warum funktioniert das?
 
-Das Sizing-Kriterium hier ist dasselbe, das `/wrap-up` später durchsetzt: *ein Task = ein zusammenhängender, getesteter Commit*. Plan-Entry und Commit-SHA beschreiben dieselbe Einheit, nur an unterschiedlichen Punkten in der Zeit. Das hat drei praktische Effekte:
+Das Sizing-Kriterium hier ist dasselbe, das `/wrap-up` + `/commit` später durchsetzen: *ein Task = ein zusammenhängender, getesteter Commit*. Plan-Entry und Commit-SHA beschreiben dieselbe Einheit, nur an unterschiedlichen Punkten in der Zeit. Das hat drei praktische Effekte:
 
 - **Schlechtes Sizing fällt beim Schreiben auf.** Wer die Acceptance leer lassen muss, merkt sofort: der Task hat keinen testbaren Kern — zu groß oder zu vage.
 - **Jeder nächste Task startet auf validiertem Boden.** Jeder Baustein trägt seinen eigenen Beweis; Folgeschritte bauen auf etablierten, nicht bloß vermuteten Zuständen auf. Die Acceptance wird zum Review-Guard für den darauffolgenden Task.
@@ -397,52 +417,163 @@ means Task 3).
 
 6. **When the task is finished, remind the user to close it out.**
    After the implementation work is done (DONE or BLOCKED), surface
-   a short closing checklist — do **not** execute any of it
-   automatically, these are user decisions:
-   - Run `/wrap-up` to generate the task summary in
-     `docs/task-log/`.
-   - Commit summary + code together in a single commit (exact
-     message format lives in `/wrap-up`).
-   - Optionally run `/review` — default is quick mode (per-task
-     hotspots + blind spots); use `/review full` before a PR.
+   the closing pair — do **not** execute either step automatically,
+   these are user decisions:
+   - `/wrap-up N` — writes or extends
+     `docs/task-log/task-{N}-{slug}.md`. Safe to run multiple
+     times across sessions before committing; findings are merged.
+   - `/commit N` — stages code + summary from the log and commits
+     them together (after showing the plan and waiting for
+     confirmation).
+   - Optionally `/review` between the two — default is quick mode
+     (per-task hotspots + blind spots); use `/review full` before
+     a PR. A second `/wrap-up N` can absorb the review findings
+     before `/commit N` runs.
 
    If the user explicitly declared the task BLOCKED instead of
-   DONE, still point at `/wrap-up` — it handles the BLOCKED case
-   (escalation assessment + re-plan proposal).
+   DONE, still point at `/wrap-up N` — it handles the BLOCKED case
+   (escalation assessment + re-plan proposal), and `/commit N`
+   picks up the BLOCKED commit-message template from the log.
 ```
 
 ---
 
 ## 3. /wrap-up
 
-Generiert eine strukturierte Task-Summary und committet sie. Das Kern-Skill des gesamten Workflows — sorgt für die Seed-Kette zwischen Tasks.
+Schreibt oder **erweitert** die Task-Summary unter `docs/task-log/`. Das Kern-Skill des gesamten Workflows — sorgt für die Seed-Kette zwischen Tasks. Läuft entweder einmal am Ende (fast path) oder mehrfach über mehrere Sessions, bevor `/commit` den Task schließt.
 
 **Datei:** `.claude/skills/wrap-up/SKILL.md` · [im Repo ansehen](./skills/wrap-up/SKILL.md)
 
 ```markdown
 ---
 name: wrap-up
-description: Generate a structured task summary 
-  at the end of a completed or blocked task. 
-  For BLOCKED tasks, also evaluates escalation 
+description: Generate or extend a structured task summary
+  at the end of a completed or blocked task.
+  For BLOCKED tasks, also evaluates escalation
   triggers and proposes a re-plan.
 ---
 # Task Wrap-Up
 
 The task is finished (or has been declared blocked).
-Create a summary file at
-`docs/task-log/task-{N}-{YYYY-MM-DD}-{slug}.md`
+Write (or extend) the task summary file at
+`docs/task-log/task-{N}-{slug}.md`.
 
 - `{N}` = task number from the plan
-- `{YYYY-MM-DD}` = today's date (use `date +%Y-%m-%d`)
 - `{slug}` = short kebab-case description (e.g. `login-service`)
 
-If the `docs/task-log/` directory does not exist, 
-create it first.
+One task gets exactly one log file. No date in the filename —
+the date lives in git history (commit date) and optionally in
+session markers inside the file.
 
-If the task is NOT finished but the context is 
-filling up, use `/handoff` instead — this skill is 
-for completed or blocked tasks only.
+If the task is NOT finished but the context is filling up,
+use `/handoff` instead — this skill is for completed or
+blocked tasks only.
+
+## Task identity — `$ARGUMENTS`
+
+Use `$ARGUMENTS` to identify the task being closed
+(e.g. `/wrap-up 3` means Task 3). The skill must know
+the task number before it writes anything.
+
+Resolution rules, in order:
+
+1. If `$ARGUMENTS` contains a number, use that.
+2. Else, if this session was primed by `/start-task N`
+   (or an earlier `/wrap-up N` / `/commit N`) and N is
+   unambiguous in context, use N.
+3. Else, **stop** and tell the user:
+   > Task number required. Run as `/wrap-up N`.
+   Do not guess, do not scan the plan, do not write a file.
+
+Fresh sessions (review-fix, retroactive wrap-up, cross-session
+handoff) always need the explicit argument — session context
+alone is not enough.
+
+## Precondition — run BEFORE committing the task's code
+
+Wrap-up must happen **before** the task's code changes are
+committed. The intended flow is:
+
+1. Finish the code changes (do NOT commit yet).
+2. Run `/wrap-up N` → summary file is written (or extended).
+3. Run `/commit N` → commits code + summary together.
+
+If the task's code has already been committed when
+`/wrap-up N` is invoked, stop and tell the user:
+
+> Task-N code was already committed as `<hash>`. The
+> wrap-up summary belongs in that commit. Either:
+>
+>   (a) amend the commit to include the summary (only if
+>       the commit has not been pushed), or
+>
+>   (b) land the summary as a separate follow-up commit
+>       (`docs: task-N wrap-up summary`) and accept the
+>       broken single-commit rule for this task.
+
+Ask the user which option before writing the file, so the
+summary lands in the right commit from the start.
+
+## Log-file lookup — merge or fresh
+
+Before writing, check for an existing log:
+
+```
+ls docs/task-log/task-{N}-*.md 2>/dev/null
+```
+
+- **No file** — fresh write, normal path.
+- **Exactly one file** — read it, **merge** with the new
+  session's findings (see merge rules below). Show the user
+  the proposed merged file and wait for approval before
+  writing.
+- **Multiple files** — the filename convention was violated
+  in the past. Stop and tell the user; ask which file to
+  extend, or let them rename/consolidate manually before
+  continuing.
+
+## Merge rules (when a log file already exists)
+
+Read the existing file, then integrate the new session's
+output as follows:
+
+- **Task** (one-sentence summary): keep existing unless the
+  new session materially changes scope; if it does, rewrite
+  and flag the change.
+- **Status**: replace with the current status. If the prior
+  status was BLOCKED and the new status is DONE, drop the
+  Escalation Assessment and Re-Plan Proposal sections
+  entirely (they are historical noise once unblocked).
+- **Files Modified**: union the lists. If the same file
+  appears in both, keep the most informative reason or
+  merge both reasons on one line.
+- **Files Read (Context Only)**: union the lists.
+- **Key Decisions**: append new decisions under a session
+  marker (see below). Do not rewrite prior decisions — they
+  are part of the record.
+- **Test Evidence**: append new evidence under a session
+  marker. Accumulates across sessions.
+- **Open Issues**: merge; drop issues that are now resolved
+  (note them in the session marker if helpful).
+- **Context for Next Task**: replace with the current view —
+  this is forward-looking, not historical.
+- **Git State**: replace with current output of
+  `git diff --stat` and `git status --short`.
+
+### Session marker
+
+When a merge happens, append a short marker to the `Key
+Decisions` and/or `Test Evidence` sections to preserve
+temporal order. Format:
+
+```
+— session 2026-04-24
+```
+
+Use `date +%Y-%m-%d` to get the date. One marker per
+session-contribution, placed before the lines added by
+that session. Keeps the log readable without introducing
+a new top-level Session heading.
 
 ## Base summary structure (always):
 
@@ -455,18 +586,18 @@ If BLOCKED, explain why and what needs to happen
 to unblock. (For in-progress tasks, use `/handoff`.)
 
 ### Files Modified
-Each file with a one-line description of what 
+Each file with a one-line description of what
 changed and why. Format:
 - `path/to/file.ts` (new|modified|deleted) — reason
 
 ### Files Read (Context Only)
-Files that were read for understanding but NOT 
-modified. This helps the next session know what 
+Files that were read for understanding but NOT
+modified. This helps the next session know what
 context was used.
 
 ### Key Decisions
-Technical decisions made during this session and 
-the reasoning behind them. Include alternatives 
+Technical decisions made during this session and
+the reasoning behind them. Include alternatives
 that were considered and rejected.
 
 ### Test Evidence
@@ -478,7 +609,7 @@ What was tested and how. Include:
 ### Open Issues
 Unfinished work, known issues, open questions.
 Reference follow-up tasks where applicable.
-Format: "Issue description (→ Task N)" 
+Format: "Issue description (→ Task N)"
 
 ### Context for Next Task
 What the next session needs to know to continue.
@@ -495,28 +626,28 @@ Run these commands and include their output:
 
 ## Additional sections for BLOCKED tasks only:
 
-If Status is BLOCKED, also evaluate the escalation 
-triggers and produce a re-plan proposal. Append the 
+If Status is BLOCKED, also evaluate the escalation
+triggers and produce a re-plan proposal. Append the
 following sections to the summary:
 
 ### Escalation Assessment
 For each trigger, state: CLEAR | WARNING | TRIGGERED
 with evidence.
 
-1. **Scope creep:** `git diff --stat` — are more files 
-   modified than the plan specified? Which ones are 
+1. **Scope creep:** `git diff --stat` — are more files
+   modified than the plan specified? Which ones are
    outside planned scope?
-2. **API changes:** Has any public interface changed 
-   that was not planned? Check exports, function 
+2. **API changes:** Has any public interface changed
+   that was not planned? Check exports, function
    signatures, shared types.
-3. **Failed attempts:** How many implementation 
-   attempts? Check git log for reverts or repeated 
+3. **Failed attempts:** How many implementation
+   attempts? Check git log for reverts or repeated
    changes to the same files.
-4. **Test failures outside scope:** Are tests failing 
-   in modules not targeted by this task? 
+4. **Test failures outside scope:** Are tests failing
+   in modules not targeted by this task?
    Run the test suite and check.
-5. **Explainability:** Can you summarize what this 
-   task accomplished in 5 bullet points or fewer? 
+5. **Explainability:** Can you summarize what this
+   task accomplished in 5 bullet points or fewer?
    If not, scope is probably too large.
 
 ### Re-Plan Proposal
@@ -526,43 +657,207 @@ Based on the assessment, propose:
 - Updated task list with revised scope
 
 Then propose an updated plan patch for `docs/plans/`.
-Do NOT overwrite the old plan — the old version stays 
+Do NOT overwrite the old plan — the old version stays
 in git history. Write the revision as an edit.
 
 ## After generating the summary:
 
-Do **not** commit automatically. The user reviews 
-the diff and commits the summary together with the 
-task's code changes in a single commit.
+Do **not** commit. The commit is `/commit N`'s job.
 
 Tell the user:
-> Summary is ready at `docs/task-log/<filename>.md`.
-> Recommended commit (code + summary together):
-> 
-> ```bash
-> git add docs/task-log/<filename>.md <changed-source-files>
-> git commit -m "task-N: <one-line summary>"
-> ```
-> 
-> For BLOCKED with re-plan:
-> ```bash
-> git add docs/task-log/<filename>.md docs/plans/<plan-file> <any-code-kept>
-> git commit -m "replan: <reason> (task-N blocked)"
-> ```
-> 
-> Before committing, run `git status` and 
-> `git diff --cached` to verify only the intended 
-> changes are staged — no `git add -A`.
 
-The single-commit rule matters: the summary 
-describes *this exact code state*. Code and summary 
-should always live in the same commit so `git log` 
-shows one coherent story per task.
+> Summary is ready at `docs/task-log/task-{N}-{slug}.md`.
+> When you are done with this task's work, close it out with
+> `/commit {N}` — that reads this log, stages code + summary
+> together, and commits with a message derived from the log's
+> title and status.
+>
+> You can run `/wrap-up {N}` again from another session
+> before committing — findings are merged into this same
+> file.
+
+The single-commit rule still matters: the final committed
+summary describes *this exact code state*. `/wrap-up` builds
+the summary; `/commit` makes the atomic commit. Keeping them
+split lets you extend the summary across sessions without
+amend-dance, and the final commit still contains one coherent
+story per task.
 ```
 
 ---
 
-## 4. /handoff
+## 4. /commit
+
+Liest das Task-Log, baut Staging-Liste und Commit-Message daraus auf, zeigt dem User den Plan und führt nach Bestätigung `git add` + `git commit` aus. Der eine Skill im Kit, der tatsächlich Git-Zustand verändert — deshalb strikt mit Confirmation-Gate.
+
+**Datei:** `.claude/skills/commit/SKILL.md` · [im Repo ansehen](./skills/commit/SKILL.md)
+
+```markdown
+---
+name: commit
+description: Commit a task's code and its wrap-up summary
+  together in a single commit. Reads the task log to derive
+  staging list and message, shows the plan to the user, then
+  executes git add + git commit after confirmation.
+---
+# Task Commit
+
+The task's wrap-up summary already exists (written by
+`/wrap-up N`). Stage and commit the task's code changes
+together with the summary file in a single commit.
+
+This skill **executes** `git add` and `git commit` after
+showing the user the full plan and waiting for explicit
+confirmation. If the user says anything other than a clear
+"yes" / "ok" / "commit", abort without running any git
+command.
+
+## Task identity — `$ARGUMENTS`
+
+Use `$ARGUMENTS` to identify the task being committed
+(e.g. `/commit 3` means Task 3). Required.
+
+Resolution rules, in order:
+
+1. If `$ARGUMENTS` contains a number, use that.
+2. Else, if this session ran `/wrap-up N` or `/start-task N`
+   and N is unambiguous in context, use N.
+3. Else, **stop** and tell the user:
+   > Task number required. Run as `/commit N`.
+   Do not guess. Do not run git commands.
+
+## Workflow
+
+### 1. Locate the log file
+
+```
+ls docs/task-log/task-{N}-*.md
+```
+
+- **Exactly one file** — continue.
+- **No file** — stop. Tell the user:
+  > No wrap-up summary found for Task N. Run `/wrap-up N`
+  > first.
+- **Multiple files** — stop. Filename convention violated;
+  ask the user to consolidate before committing.
+
+### 2. Read the log file
+
+Extract:
+
+- **Title** (from `### Task` — the one-sentence summary).
+- **Status** (`DONE` or `BLOCKED`).
+- **Files Modified** list — the canonical list of source
+  files that should be staged.
+- For BLOCKED: note the Re-Plan Proposal if present and
+  identify the plan file path referenced.
+
+### 3. Check current git state
+
+```
+git status --short
+git diff --stat
+```
+
+Reconcile against the Files Modified list:
+
+- Files listed in the log that are **missing** from the
+  working tree / index → flag to user. Possible causes:
+  file was reverted, already committed separately, or log
+  is stale.
+- Files present in the working tree that are **not** in
+  the log → flag to user. Either the log is incomplete
+  (re-run `/wrap-up N` to refresh) or these files belong
+  to a different task.
+- Files already staged that are **not** in the log → flag.
+  The user might have staged something by hand; ask before
+  sweeping it into the task commit.
+
+Do not auto-resolve any of these — surface them and wait.
+
+### 4. Build the staging list and commit message
+
+**Staging list:**
+
+- The log file: `docs/task-log/task-{N}-{slug}.md`
+- Every file in the log's `Files Modified` section that
+  exists in the working tree or index.
+- For BLOCKED with Re-Plan: also include
+  `docs/plans/<plan-file>.md` (the updated plan).
+
+**Commit message template:**
+
+- **DONE:** `task-N: <title from log>`
+- **BLOCKED with re-plan:** `replan: <reason> (task-N blocked)`
+  The `<reason>` is a short human-readable phrase derived
+  from the Re-Plan Proposal — ask the user if ambiguous.
+- **BLOCKED without re-plan:** `task-N: blocked — <reason>`
+
+Keep messages short (≤ 72 chars for the subject line). No
+automatic body unless the user asks for one.
+
+### 5. Show the commit plan
+
+Present a single block to the user containing:
+
+- Commit message (subject line).
+- Files to be staged, one per line, grouped as:
+  - `[log]` — the task summary file
+  - `[code]` — source files from Files Modified
+  - `[plan]` — plan file (BLOCKED+replan only)
+- Any discrepancies from step 3 (missing / extra / already-staged
+  files) with a short note each.
+- The exact commands that will run:
+  ```
+  git add <file1> <file2> ...
+  git commit -m "<message>"
+  ```
+
+End with a confirmation prompt, e.g.:
+
+> Commit Task N as shown above? (yes / no / edit message)
+
+### 6. Act on the response
+
+- **`yes` / `ok` / `commit`** — run `git add <files>` then
+  `git commit -m "<message>"`. Show the resulting commit
+  hash and a one-line confirmation.
+- **`edit message`** — accept a revised message from the
+  user and re-show the plan for confirmation. Do not
+  commit until re-confirmed.
+- **`no`** or anything ambiguous — abort. Do not stage,
+  do not commit. Tell the user nothing was changed.
+
+### 7. After a successful commit
+
+Tell the user:
+
+> Committed as `<hash>`. Task N is closed.
+>
+> Next: `/start-task N+1` to begin the next task, or
+> `/review` for a quick per-task review, or
+> `/review full` before opening a PR.
+
+Do **not** push. Pushing is an explicit human action.
+
+## What this skill does not do
+
+- It does not run tests. Test evidence lives in the wrap-up.
+- It does not amend or rewrite history. If the user needs
+  to amend a prior commit, they do that by hand.
+- It does not push to a remote.
+- It does not sweep files with `git add -A` or `git add .`.
+  Every path in the staging list is explicit and traceable
+  to the log.
+```
+
+### Warum die Trennung wrap-up / commit?
+
+Der Grund, dass das zwei Skills sind und nicht einer, liegt in der Realität gemischter Session-Rhythmen. Wer alles in einer Session macht, könnte sie zusammenfassen — aber sobald ein Review in einer zweiten Session dazwischenkommt oder Arbeit über Tage gestreckt wird, braucht man die Freiheit, das Protokoll mehrfach zu erweitern, bevor der atomare Commit fällt. Das Paar macht beide Muster sauber: Schnell-Rhythmus ist `wrap-up` → `commit` direkt hintereinander; Spread-Rhythmus ist `wrap-up` → (Pause, Review, mehr Arbeit) → `wrap-up` → `commit`. Keine Overwrites, keine stillen Datenverluste, keine Amend-Rituale.
+
+---
+
+## 5. /handoff
 
 > **Exception-Skill, kein Routine-Baustein.** Der Normalabschluss eines Tasks ist `/wrap-up`. `/handoff` ist nur für zwei Fälle gedacht: (a) Context wird knapp *bevor* der Task fertig ist, oder (b) du pausierst den Task bewusst, weil manuelle Nacharbeit ansteht und du später in frischer Session weitermachst.
 
@@ -699,7 +994,7 @@ Sourcegraph Amp hat Session Handoff als **eingebautes Feature** mit eigenem Slas
 
 ---
 
-## 5. /review
+## 6. /review
 
 Generiert einen Guided Review Brief mit Hotspots, Cross-Task Concerns und Blind Spots.
 

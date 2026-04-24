@@ -89,15 +89,20 @@ means Task 3).
 
 6. **When the task is finished, remind the user to close it out.**
    After the implementation work is done (DONE or BLOCKED), surface
-   a short closing checklist — do **not** execute any of it
-   automatically, these are user decisions:
-   - Run `/wrap-up` to generate the task summary in
-     `docs/task-log/`.
-   - Commit summary + code together in a single commit (exact
-     message format lives in `/wrap-up`).
-   - Optionally run `/review` — default is quick mode (per-task
-     hotspots + blind spots); use `/review full` before a PR.
+   the closing pair — do **not** execute either step automatically,
+   these are user decisions:
+   - `/wrap-up N` — writes or extends
+     `docs/task-log/task-{N}-{slug}.md`. Safe to run multiple
+     times across sessions before committing; findings are merged.
+   - `/commit N` — stages code + summary from the log and commits
+     them together (after showing the plan and waiting for
+     confirmation).
+   - Optionally `/review` between the two — default is quick mode
+     (per-task hotspots + blind spots); use `/review full` before
+     a PR. A second `/wrap-up N` can absorb the review findings
+     before `/commit N` runs.
 
    If the user explicitly declared the task BLOCKED instead of
-   DONE, still point at `/wrap-up` — it handles the BLOCKED case
-   (escalation assessment + re-plan proposal).
+   DONE, still point at `/wrap-up N` — it handles the BLOCKED case
+   (escalation assessment + re-plan proposal), and `/commit N`
+   picks up the BLOCKED commit-message template from the log.
