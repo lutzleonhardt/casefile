@@ -20,12 +20,25 @@ means Task 3).
    - Locate the plan file: `docs/plans/*.md` or `plan.md` in the
      project root. If no task number is given in $ARGUMENTS,
      ask which task to start.
-   - Preamble (everything before the first task heading):
-     `awk '/^## Task [0-9]/{exit} {print}' <plan-file>`
-   - Task block only (N is the requested task number). Note the
-     `f==0` instead of `!f` — a leading `!` in an interactive
-     bash triggers history expansion and breaks the command:
-     `awk -v n=N 'BEGIN{f=0} f==0 && $0 ~ "^## Task " n "($|[: ])" {f=1; print; next} f && /^## Task [0-9]/ {exit} f' <plan-file>`
+   - **Primary path — shell-free extraction via `grep` + `Read`:**
+     1) `grep -n '^## Task [0-9]' <plan-file>` to list every task
+        heading with its line number.
+     2) Preamble: `Read <plan-file>` with `offset=1` and
+        `limit=<line-of-first-task-heading − 1>`.
+     3) Task N block: `Read <plan-file>` with
+        `offset=<line-of-Task-N>` and
+        `limit=<line-of-Task-N+1 − line-of-Task-N>`. For the last
+        task, omit `limit` (reads to EOF).
+     This avoids shell quoting entirely and is the preferred route.
+   - **Fallback — pure-shell awk (only if `Read` offset/limit is
+     unavailable):** use a positive-only pattern that contains no
+     `!`. Do NOT use `!f` — in interactive bash the leading `!`
+     triggers history expansion and breaks the command:
+
+     ```
+     awk '/^## Task [0-9]/{exit} {print}' <plan-file>
+     awk -v n=N '/^## Task [0-9]/ { if (inblock) exit; if ($0 ~ "^## Task " n "($|[: ])") inblock=1 } inblock' <plan-file>
+     ```
    - Do NOT read the spec (`docs/specs/`). If the task block
      references the spec or a sibling task, flag this back to
      the user before proceeding — the plan violates `/plan`'s
@@ -73,3 +86,18 @@ means Task 3).
    oversized tasks from plans written outside `/plan`.
 
 5. **Wait for user approval** before proceeding.
+
+6. **When the task is finished, remind the user to close it out.**
+   After the implementation work is done (DONE or BLOCKED), surface
+   a short closing checklist — do **not** execute any of it
+   automatically, these are user decisions:
+   - Run `/wrap-up` to generate the task summary in
+     `docs/task-log/`.
+   - Commit summary + code together in a single commit (exact
+     message format lives in `/wrap-up`).
+   - Optionally run `/review` — default is quick mode (per-task
+     hotspots + blind spots); use `/review full` before a PR.
+
+   If the user explicitly declared the task BLOCKED instead of
+   DONE, still point at `/wrap-up` — it handles the BLOCKED case
+   (escalation assessment + re-plan proposal).

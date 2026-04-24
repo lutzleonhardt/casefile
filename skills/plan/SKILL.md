@@ -117,8 +117,14 @@ extraction pattern anchors on `^## Task <number>`.
 > The executing agent may adjust scope and ordering based on more
 > up-to-date context discovered during implementation, as long as
 > each task still satisfies the sizing rules above.
+>
+> When a task is finished (DONE or BLOCKED), run `/wrap-up` to
+> generate the summary, commit summary + code together in a
+> single commit, and optionally run `/review` (quick per-task,
+> full before a PR). Do not commit automatically.
 
-This keeps the plan a guide, not a straitjacket.
+This keeps the plan a guide, not a straitjacket — and gives every
+`/start-task` run the closing checklist in its loaded context.
 
 ## After user approval
 

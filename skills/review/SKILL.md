@@ -24,18 +24,56 @@ Check `$ARGUMENTS`:
 Quick mode is the daily driver. Full mode is for the 
 moment before the PR leaves the author.
 
+## Review scope — commit range vs. working tree
+
+Before running the workflow, decide **what** is being reviewed.
+`/review` has to cover both committed history and work in the
+working tree, because `/wrap-up` produces summary + code
+*uncommitted by design* — the most common review moment is exactly
+*before* that commit goes out.
+
+Check git state first:
+
+- `git status --short` — any uncommitted or staged changes?
+- `git log --oneline -10` — recent commit history.
+
+Pick the scope:
+
+- **Working-tree only** (nothing committed yet for the current
+  task): review `git diff HEAD` — this covers staged + unstaged
+  changes together. Split with `git diff` (unstaged) and
+  `git diff --cached` (staged) if that distinction matters.
+- **Committed only** (no working-tree changes): review
+  `git diff <start-commit>..HEAD`.
+- **Mixed** (some commits already landed for the task, more
+  changes still in the working tree): review both —
+  `git diff <start-commit>..HEAD` for the committed part and
+  `git diff HEAD` for what is still pending. Call out the split
+  in the output so the user can see which findings belong to
+  which slice.
+
+If the user passed an explicit range in `$ARGUMENTS` (e.g.
+`/review HEAD~3..HEAD`), honour it verbatim and skip scope
+detection.
+
 ## Workflow (both modes):
 
-1. **Understand recent history:**
+1. **Understand recent history and current state:**
+   - `git status --short` — working-tree state
    - `git log --oneline -10`
-   - Identify the commit range for the review scope
-     - Quick: just the current task's commits
-     - Full: the whole feature's commits
+   - Identify the review scope per the rules above
+     - Quick: just the current task (working tree, its
+       commits, or both)
+     - Full: the whole feature — all its commits plus any
+       pending working-tree changes
    - Read commit messages for intent
 
 2. **Review the actual changes:**
-   - `git diff <start-commit>..HEAD`
-   - Read modified files in full (not just diffs) 
+   - For committed parts: `git diff <start-commit>..HEAD`
+   - For pending parts: `git diff HEAD` (and/or
+     `git diff --cached` vs. `git diff` if staged/unstaged
+     need to be distinguished)
+   - Read modified files in full (not just diffs)
      to understand surrounding context
    - Check if tests were added or updated
 

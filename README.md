@@ -264,8 +264,14 @@ extraction pattern anchors on `^## Task <number>`.
 > The executing agent may adjust scope and ordering based on more
 > up-to-date context discovered during implementation, as long as
 > each task still satisfies the sizing rules above.
+>
+> When a task is finished (DONE or BLOCKED), run `/wrap-up` to
+> generate the summary, commit summary + code together in a
+> single commit, and optionally run `/review` (quick per-task,
+> full before a PR). Do not commit automatically.
 
-This keeps the plan a guide, not a straitjacket.
+This keeps the plan a guide, not a straitjacket — and gives every
+`/start-task` run the closing checklist in its loaded context.
 
 ## After user approval
 
@@ -322,12 +328,25 @@ means Task 3).
    - Locate the plan file: `docs/plans/*.md` or `plan.md` in the
      project root. If no task number is given in $ARGUMENTS,
      ask which task to start.
-   - Preamble (everything before the first task heading):
-     `awk '/^## Task [0-9]/{exit} {print}' <plan-file>`
-   - Task block only (N is the requested task number). Note the
-     `f==0` instead of `!f` — a leading `!` in an interactive
-     bash triggers history expansion and breaks the command:
-     `awk -v n=N 'BEGIN{f=0} f==0 && $0 ~ "^## Task " n "($|[: ])" {f=1; print; next} f && /^## Task [0-9]/ {exit} f' <plan-file>`
+   - **Primary path — shell-free extraction via `grep` + `Read`:**
+     1) `grep -n '^## Task [0-9]' <plan-file>` to list every task
+        heading with its line number.
+     2) Preamble: `Read <plan-file>` with `offset=1` and
+        `limit=<line-of-first-task-heading − 1>`.
+     3) Task N block: `Read <plan-file>` with
+        `offset=<line-of-Task-N>` and
+        `limit=<line-of-Task-N+1 − line-of-Task-N>`. For the last
+        task, omit `limit` (reads to EOF).
+     This avoids shell quoting entirely and is the preferred route.
+   - **Fallback — pure-shell awk (only if `Read` offset/limit is
+     unavailable):** use a positive-only pattern that contains no
+     `!`. Do NOT use `!f` — in interactive bash the leading `!`
+     triggers history expansion and breaks the command:
+
+     ```
+     awk '/^## Task [0-9]/{exit} {print}' <plan-file>
+     awk -v n=N '/^## Task [0-9]/ { if (inblock) exit; if ($0 ~ "^## Task " n "($|[: ])") inblock=1 } inblock' <plan-file>
+     ```
    - Do NOT read the spec (`docs/specs/`). If the task block
      references the spec or a sibling task, flag this back to
      the user before proceeding — the plan violates `/plan`'s
@@ -375,6 +394,21 @@ means Task 3).
    oversized tasks from plans written outside `/plan`.
 
 5. **Wait for user approval** before proceeding.
+
+6. **When the task is finished, remind the user to close it out.**
+   After the implementation work is done (DONE or BLOCKED), surface
+   a short closing checklist — do **not** execute any of it
+   automatically, these are user decisions:
+   - Run `/wrap-up` to generate the task summary in
+     `docs/task-log/`.
+   - Commit summary + code together in a single commit (exact
+     message format lives in `/wrap-up`).
+   - Optionally run `/review` — default is quick mode (per-task
+     hotspots + blind spots); use `/review full` before a PR.
+
+   If the user explicitly declared the task BLOCKED instead of
+   DONE, still point at `/wrap-up` — it handles the BLOCKED case
+   (escalation assessment + re-plan proposal).
 ```
 
 ---
@@ -698,18 +732,56 @@ Check `$ARGUMENTS`:
 Quick mode is the daily driver. Full mode is for the 
 moment before the PR leaves the author.
 
+## Review scope — commit range vs. working tree
+
+Before running the workflow, decide **what** is being reviewed.
+`/review` has to cover both committed history and work in the
+working tree, because `/wrap-up` produces summary + code
+*uncommitted by design* — the most common review moment is exactly
+*before* that commit goes out.
+
+Check git state first:
+
+- `git status --short` — any uncommitted or staged changes?
+- `git log --oneline -10` — recent commit history.
+
+Pick the scope:
+
+- **Working-tree only** (nothing committed yet for the current
+  task): review `git diff HEAD` — this covers staged + unstaged
+  changes together. Split with `git diff` (unstaged) and
+  `git diff --cached` (staged) if that distinction matters.
+- **Committed only** (no working-tree changes): review
+  `git diff <start-commit>..HEAD`.
+- **Mixed** (some commits already landed for the task, more
+  changes still in the working tree): review both —
+  `git diff <start-commit>..HEAD` for the committed part and
+  `git diff HEAD` for what is still pending. Call out the split
+  in the output so the user can see which findings belong to
+  which slice.
+
+If the user passed an explicit range in `$ARGUMENTS` (e.g.
+`/review HEAD~3..HEAD`), honour it verbatim and skip scope
+detection.
+
 ## Workflow (both modes):
 
-1. **Understand recent history:**
+1. **Understand recent history and current state:**
+   - `git status --short` — working-tree state
    - `git log --oneline -10`
-   - Identify the commit range for the review scope
-     - Quick: just the current task's commits
-     - Full: the whole feature's commits
+   - Identify the review scope per the rules above
+     - Quick: just the current task (working tree, its
+       commits, or both)
+     - Full: the whole feature — all its commits plus any
+       pending working-tree changes
    - Read commit messages for intent
 
 2. **Review the actual changes:**
-   - `git diff <start-commit>..HEAD`
-   - Read modified files in full (not just diffs) 
+   - For committed parts: `git diff <start-commit>..HEAD`
+   - For pending parts: `git diff HEAD` (and/or
+     `git diff --cached` vs. `git diff` if staged/unstaged
+     need to be distinguished)
+   - Read modified files in full (not just diffs)
      to understand surrounding context
    - Check if tests were added or updated
 
