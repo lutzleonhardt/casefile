@@ -23,10 +23,33 @@ If no argument is given, ask which spec to plan.
    - `ls docs/task-log/ 2>/dev/null` — is there related recent work?
    - `ls docs/plans/ 2>/dev/null` — does a plan already exist for this spec?
 
-3. **Propose a task breakdown** following the rules below.
+3. **Pick the starting task number.** Task numbers are
+   **globally sequential across the repo**, not local to one
+   plan. To find the right starting number:
+
+   ```
+   ls docs/task-log/task-*.md 2>/dev/null
+   grep -h '^## Task ' docs/plans/*.md 2>/dev/null
+   ```
+
+   Take the highest `N` that appears in either output (a logged
+   task or a not-yet-wrapped-up task in another plan) and start
+   this plan at `N + 1`. If both queries return empty, this is
+   the first plan in the repo — start at 1.
+
+   Why globally sequential: the whole skill chain
+   (`/start-task`, `/wrap-up`, `/commit`, `/handoff`) keys off
+   a single integer plus the file convention
+   `task-N-{slug}.md`. Restarting numbering per plan or per
+   milestone breaks that integer's uniqueness and produces
+   filename collisions in `docs/task-log/`. The plan filename
+   (`docs/plans/{slug}.md`) already carries milestone identity
+   when needed; the task number does not have to.
+
+4. **Propose a task breakdown** following the rules below.
    Present it to the user **before** writing any file.
 
-4. **Wait for user approval.** Only then write to
+5. **Wait for user approval.** Only then write to
    `docs/plans/{slug}.md`. If a plan file already exists, propose
    an edit rather than overwriting — the user decides.
 
@@ -103,7 +126,15 @@ can extract exactly one task block without loading siblings:
   Keep it compact (≤ 30 lines). This is the only cross-cutting
   context `/start-task` will load alongside the requested task.
 - **Task heading** — `## Task N` or `## Task N: <title>` on its
-  own line. Tasks are numbered sequentially starting at 1.
+  own line. Numbering is globally sequential across the whole
+  repo (see Workflow step 3) — a new plan does **not** restart
+  at 1 if prior tasks already exist. If the new plan's first
+  task is, say, Task 17, that's correct; the gap (Tasks 1–16
+  live in earlier plans / earlier milestones) is intentional
+  and is the cost of keeping every `task-N-{slug}.md` filename
+  globally unique. Optionally add a one-line preamble note
+  ("Task numbering continues from <prior-plan>; last task = N.")
+  to spare future readers the lookup.
 - **Task block** — from `## Task N` up to (but excluding) the
   next `## Task M` heading or EOF. `/start-task N` extracts
   exactly this block.
