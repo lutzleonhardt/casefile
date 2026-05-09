@@ -186,10 +186,33 @@ If no argument is given, ask which spec to plan.
    - `ls docs/task-log/ 2>/dev/null` — is there related recent work?
    - `ls docs/plans/ 2>/dev/null` — does a plan already exist for this spec?
 
-3. **Propose a task breakdown** following the rules below.
+3. **Pick the starting task number.** Task numbers are
+   **globally sequential across the repo**, not local to one
+   plan. To find the right starting number:
+
+   ```
+   ls docs/task-log/task-*.md 2>/dev/null
+   grep -h '^## Task ' docs/plans/*.md 2>/dev/null
+   ```
+
+   Take the highest `N` that appears in either output (a logged
+   task or a not-yet-wrapped-up task in another plan) and start
+   this plan at `N + 1`. If both queries return empty, this is
+   the first plan in the repo — start at 1.
+
+   Why globally sequential: the whole skill chain
+   (`/start-task`, `/wrap-up`, `/commit`, `/handoff`) keys off
+   a single integer plus the file convention
+   `task-N-{slug}.md`. Restarting numbering per plan or per
+   milestone breaks that integer's uniqueness and produces
+   filename collisions in `docs/task-log/`. The plan filename
+   (`docs/plans/{slug}.md`) already carries milestone identity
+   when needed; the task number does not have to.
+
+4. **Propose a task breakdown** following the rules below.
    Present it to the user **before** writing any file.
 
-4. **Wait for user approval.** Only then write to
+5. **Wait for user approval.** Only then write to
    `docs/plans/{slug}.md`. If a plan file already exists, propose
    an edit rather than overwriting — the user decides.
 
@@ -206,12 +229,24 @@ If no argument is given, ask which spec to plan.
   rules, invariants — into `Instructions`, `Acceptance`, or
   `Key Discoveries`. A task that says "implement section 3.2 of
   the spec" is broken by definition.
-- **Acceptance built in.** Each task carries its own verification —
-  prefer automated tests (unit or integration). If automation is
-  a bad fit, acceptance may be omitted rather than prescribing
-  manual steps. For pure mechanical refactors with no behavior
-  change, acceptance is optional (existing tests staying green
-  is implicit).
+- **Acceptance built in and traceable.** Each task carries its
+  own verification — prefer automated tests (unit or integration).
+  Each acceptance criterion gets a stable ID:
+  `T{N}-AC-{NN}` where `{N}` is the task number exactly as written
+  in the plan (`T3`, `T3.5`, `T17`, ...) and `{NN}` is a zero-padded
+  counter starting at `01`. Use those IDs in `/start-task`,
+  `/wrap-up`, `/commit`, and `/review`.
+  - During draft planning, renumber freely until the user approves.
+  - After the plan is accepted/committed, AC IDs are append-only:
+    if an AC is dropped or reordered, leave a gap and do not
+    renumber existing IDs.
+  - A criterion is ID-worthy only if someone could later say
+    "cover T3-AC-04" and know what behavior is meant. Generic
+    bullets like "tests pass" are not acceptance criteria.
+  If automation is a bad fit, acceptance may be omitted rather
+  than prescribing manual steps. For pure mechanical refactors
+  with no behavior change, acceptance is optional (existing tests
+  staying green is implicit).
 - **No standalone "testing", "verification", or "stabilization"
   tasks.** Tests belong to the task that introduces the behavior.
   A separate test-task is a size smell — the behavior-task was
@@ -246,8 +281,19 @@ For each task, produce:
   self-contained: no references like "see spec" or "as in Task 2".
   The executing agent will read only this block plus the plan
   preamble.
-- **Acceptance** — how to verify success. Optional only for pure
-  mechanical refactors.
+- **Acceptance** — how to verify success. Each acceptance
+  criterion gets a stable ID `T{N}-AC-{NN}`:
+  - `N` is the task number exactly as written in the heading,
+    including point tasks such as `3.5`.
+  - `NN` is a zero-padded counter starting at `01`.
+  - IDs are stable after plan approval. Leave gaps instead of
+    renumbering if an AC is removed later.
+  - Prefer behavior phrasing: Given/When/Then or a compact
+    observable assertion.
+  - If this task contributes to a cross-cutting acceptance item,
+    mention the `XC-NN` ID here; `/start-task` will not load the
+    plan-end cross-cutting section by default.
+  Optional only for pure mechanical refactors.
 - **Key Locations** — files, fully qualified classes/methods
   likely to be touched.
 - **Key Discoveries** — facts from the spec or outside the key
@@ -266,7 +312,15 @@ can extract exactly one task block without loading siblings:
   Keep it compact (≤ 30 lines). This is the only cross-cutting
   context `/start-task` will load alongside the requested task.
 - **Task heading** — `## Task N` or `## Task N: <title>` on its
-  own line. Tasks are numbered sequentially starting at 1.
+  own line. Numbering is globally sequential across the whole
+  repo (see Workflow step 3) — a new plan does **not** restart
+  at 1 if prior tasks already exist. If the new plan's first
+  task is, say, Task 17, that's correct; the gap (Tasks 1–16
+  live in earlier plans / earlier milestones) is intentional
+  and is the cost of keeping every `task-N-{slug}.md` filename
+  globally unique. Optionally add a one-line preamble note
+  ("Task numbering continues from <prior-plan>; last task = N.")
+  to spare future readers the lookup.
 - **Task block** — from `## Task N` up to (but excluding) the
   next `## Task M` heading or EOF. `/start-task N` extracts
   exactly this block.
@@ -274,6 +328,42 @@ can extract exactly one task block without loading siblings:
 Do not nest tasks under deeper headings (`### Task N`) and do
 not split a task across multiple `## Task N` occurrences — the
 extraction pattern anchors on `^## Task <number>`.
+
+## Cross-Cutting Acceptance
+
+If the plan has more than ~3 tasks or contains invariants that
+span task boundaries, add a short plan-end section:
+
+```
+## Cross-Cutting Acceptance
+
+- **XC-01** — <observable behavior no single task can prove alone>.
+  **Touches:** T1, T2, T3.
+```
+
+Rules:
+
+- Use IDs `XC-{NN}`. They are stable after plan approval and
+  append-only like task AC IDs.
+- Keep this section at the end of the plan, after the final task
+  block. `/start-task N` must not load it unless the requested
+  task block explicitly references an `XC-NN`.
+- Keep it short. If it grows past ~10 items, the per-task ACs are
+  probably under-specifying local invariants.
+- An `XC` item belongs here only if it cannot be fully proven by
+  one task on its own. Otherwise put it in the relevant task's
+  Acceptance section.
+- Each item must include a `Touches:` line listing contributing
+  task IDs.
+
+Good examples:
+
+- **XC-01** — The history log records exactly one durable entry per
+  successful mutating tool call and no entries for failed atomic
+  edits. **Touches:** T1, T2, T3.
+- **XC-02** — The prompt date, tool-scope date, and repository
+  search date use the same captured value within a turn.
+  **Touches:** T3, T3.5, T5.5.
 
 ## Flexibility clause (include verbatim in the plan)
 
@@ -315,6 +405,10 @@ Das Sizing-Kriterium hier ist dasselbe, das `/wrap-up` + `/commit` später durch
 - **Jeder nächste Task startet auf validiertem Boden.** Jeder Baustein trägt seinen eigenen Beweis; Folgeschritte bauen auf etablierten, nicht bloß vermuteten Zuständen auf. Die Acceptance wird zum Review-Guard für den darauffolgenden Task.
 - **„Testing am Ende" fällt aus.** Das Anti-Pattern „erst baue ich vier Dinge, dann mache ich einen Test-Task drauf" wird durch die Regel *keine Standalone-Test-Tasks* explizit verboten — Tests leben dort, wo sie etwas validieren, nicht in einer eigenen Aufräum-Phase.
 
+Die AC-ID-Konvention (`T{N}-AC-{NN}`) verschärft diesen Effekt zusätzlich: jeder Acceptance-Punkt muss ID-würdig formulierbar sein — so präzise, dass „cover T3-AC-04" drei Wochen später noch eindeutig referenziert. Bullets, die das nicht aushalten, sind keine Acceptance, sondern Hoffnungen, und das wird beim Schreiben sichtbar. Gleichzeitig werden die IDs zur Klammer durch den gesamten Lifecycle: Test-Plan-Targets in `/start-task`, Coverage-Status pro Session in `/wrap-up`, Body-Referenzen bei Teilabdeckung in `/commit`, Finding-Anker in `/review`. Acceptance hört damit auf, ein einmaliges Plan-Artefakt zu sein, und wird zur durchgehenden Coverage-Surface mit stabilen Bezugspunkten.
+
+Was das Per-Task-Sizing strukturell nicht abdeckt — Invarianten zwischen Tasks, die kein einzelner allein beweisen kann (Audit-Log-Eindeutigkeit, Single-Clock über Module hinweg, R-Regeln, die mehrere Subsysteme gleichzeitig binden) — fängt die `Cross-Cutting Acceptance`-Sektion am Plan-Ende auf. Sie hat eigene `XC-NN`-IDs und pro Item eine `Touches:`-Liste, damit Trust-Invarianten eine eigene Heimat bekommen, ohne das Per-Task-Sizing zu verwässern. Bewusst geprüft wird sie nicht in jedem `/start-task` (das würde das Context-Budget pro Task sprengen), sondern in `/review full` vor einer PR — also genau einmal an der Stelle, an der eine Integrationslücke noch billig zu reparieren ist.
+
 Das Muster ist in vergleichbarer Form in Produktions-Agenten (z.B. Brokks `createOrReplaceTaskList`) operationalisiert. Die harten Regeln — ein Ziel pro Task, keine Test-only-Tasks, Diff + Test als ein Commit — haben sich dort bewährt. Die Skill-Version übernimmt den Kern und lässt Brokks Tool-Call-Mechanik (Verbatim-Copy bei Inkremental-Updates, `List<TaskListEntry>`-Strukturierung) weg, die nur in einer Agent-UI sinnvoll ist.
 
 ---
@@ -325,7 +419,7 @@ Bootstrapped eine neue Task-Session mit dem richtigen Kontext. Verhindert, dass 
 
 **Datei:** `.claude/skills/start-task/SKILL.md` · [im Repo ansehen](./skills/start-task/SKILL.md)
 
-```markdown
+````markdown
 ---
 name: start-task
 description: Bootstrap a new task session with plan context, 
@@ -402,7 +496,8 @@ means Task 3).
    2) Risks
    3) File-level plan
    4) Testable artifact & review guard for the next task
-   5) Test plan
+   5) Test plan — list which AC IDs (`T{N}-AC-{NN}`) each
+      planned test or manual check covers
    6) Rollback plan
    
    Do not write code yet.
@@ -412,6 +507,12 @@ means Task 3).
    no clear answer, stop and flag back to the user — the task
    is likely too large or too vague. This gate also catches
    oversized tasks from plans written outside `/plan`.
+
+   Do not load the plan-end `Cross-Cutting Acceptance` section
+   during normal task start. If the requested task block itself
+   references an `XC-NN`, mention that this task contributes to it
+   in the test plan, but keep the task briefing grounded in the
+   task block.
 
 5. **Wait for user approval** before proceeding.
 
@@ -434,7 +535,7 @@ means Task 3).
    DONE, still point at `/wrap-up N` — it handles the BLOCKED case
    (escalation assessment + re-plan proposal), and `/commit N`
    picks up the BLOCKED commit-message template from the log.
-```
+````
 
 ---
 
@@ -444,7 +545,7 @@ Schreibt oder **erweitert** die Task-Summary unter `docs/task-log/`. Das Kern-Sk
 
 **Datei:** `.claude/skills/wrap-up/SKILL.md` · [im Repo ansehen](./skills/wrap-up/SKILL.md)
 
-```markdown
+````markdown
 ---
 name: wrap-up
 description: Generate or extend a structured task summary
@@ -553,6 +654,10 @@ output as follows:
   are part of the record.
 - **Test Evidence**: append new evidence under a session
   marker. Accumulates across sessions.
+- **Acceptance Coverage**: union the AC IDs. If an AC was
+  partial/skipped in the prior session and is now passed, replace
+  it. If it was passed and now regresses, surface that explicitly
+  instead of silently downgrading it.
 - **Open Issues**: merge; drop issues that are now resolved
   (note them in the session marker if helpful).
 - **Context for Next Task**: replace with the current view —
@@ -605,6 +710,23 @@ What was tested and how. Include:
 - Test commands run and their output
 - Manual verification steps taken
 - Screenshots or log snippets if relevant
+
+### Acceptance Coverage
+One line per AC ID from the task's plan block.
+
+Status values:
+- `passed` — automated test exists and is green; reference the
+  test file/test name or command output.
+- `partial` — covered manually, or automated coverage stops short
+  of the full AC; explain the gap.
+- `skipped` — explicitly not addressed this session; explain why
+  and reference a follow-up task if applicable.
+- `N/A` — AC was dropped by an approved plan amendment; leave a
+  one-line note and keep the ID visible.
+
+If any AC is `skipped` and that was not a deliberate scope decision,
+the task is not ready for `/commit N`. Finish the AC or split the
+remaining work into a follow-up task before committing.
 
 ### Open Issues
 Unfinished work, known issues, open questions.
@@ -682,7 +804,7 @@ the summary; `/commit` makes the atomic commit. Keeping them
 split lets you extend the summary across sessions without
 amend-dance, and the final commit still contains one coherent
 story per task.
-```
+````
 
 ---
 
@@ -692,7 +814,7 @@ Liest das Task-Log, baut Staging-Liste und Commit-Message daraus auf, zeigt dem 
 
 **Datei:** `.claude/skills/commit/SKILL.md` · [im Repo ansehen](./skills/commit/SKILL.md)
 
-```markdown
+````markdown
 ---
 name: commit
 description: Commit a task's code and its wrap-up summary
@@ -749,6 +871,8 @@ Extract:
 - **Status** (`DONE` or `BLOCKED`).
 - **Files Modified** list — the canonical list of source
   files that should be staged.
+- **Acceptance Coverage** — note covered, partial, skipped, or
+  deferred AC IDs for the optional commit body.
 - For BLOCKED: note the Re-Plan Proposal if present and
   identify the plan file path referenced.
 
@@ -794,7 +918,18 @@ Do not auto-resolve any of these — surface them and wait.
 - **BLOCKED without re-plan:** `task-N: blocked — <reason>`
 
 Keep messages short (≤ 72 chars for the subject line). No
-automatic body unless the user asks for one.
+automatic body unless the user asks for one or the Acceptance
+Coverage section contains anything other than `passed`.
+
+When a body is warranted, keep it short and traceable:
+
+```
+Covers T{N}-AC-01..05
+Partial T{N}-AC-06: <reason>
+Defers T{N}-AC-07 -> Task M
+```
+
+Prefer `Covers` over `Closes`; AC IDs are not issue IDs.
 
 ### 5. Show the commit plan
 
@@ -811,6 +946,7 @@ Present a single block to the user containing:
   ```
   git add <file1> <file2> ...
   git commit -m "<message>"
+  # or: git commit -m "<message>" -m "<body>" when a body is used
   ```
 
 End with a confirmation prompt, e.g.:
@@ -820,8 +956,9 @@ End with a confirmation prompt, e.g.:
 ### 6. Act on the response
 
 - **`yes` / `ok` / `commit`** — run `git add <files>` then
-  `git commit -m "<message>"`. Show the resulting commit
-  hash and a one-line confirmation.
+  `git commit -m "<message>"` (plus `-m "<body>"` if the shown
+  plan included a body). Show the resulting commit hash and a
+  one-line confirmation.
 - **`edit message`** — accept a revised message from the
   user and re-show the plan for confirmation. Do not
   commit until re-confirmed.
@@ -849,11 +986,13 @@ Do **not** push. Pushing is an explicit human action.
 - It does not sweep files with `git add -A` or `git add .`.
   Every path in the staging list is explicit and traceable
   to the log.
-```
+````
 
 ### Warum die Trennung wrap-up / commit?
 
 Der Grund, dass das zwei Skills sind und nicht einer, liegt in der Realität gemischter Session-Rhythmen. Wer alles in einer Session macht, könnte sie zusammenfassen — aber sobald ein Review in einer zweiten Session dazwischenkommt oder Arbeit über Tage gestreckt wird, braucht man die Freiheit, das Protokoll mehrfach zu erweitern, bevor der atomare Commit fällt. Das Paar macht beide Muster sauber: Schnell-Rhythmus ist `wrap-up` → `commit` direkt hintereinander; Spread-Rhythmus ist `wrap-up` → (Pause, Review, mehr Arbeit) → `wrap-up` → `commit`. Keine Overwrites, keine stillen Datenverluste, keine Amend-Rituale.
+
+Die Acceptance-Coverage-Sektion in der Wrap-up-Summary nutzt genau diese Mehrsessionsfähigkeit aus: AC-Status können sich zwischen Sessions verändern (`partial` → `passed`, oder umgekehrt als Regression-Flag), die Merge-Regel erkennt das und zwingt zum sichtbaren Surface-Up statt zu stillem Überschreiben. `/commit` schaltet seinen optionalen Body-Block automatisch nur dann an, wenn die Coverage etwas anderes als komplett `passed` zeigt — Traceability genau dort, wo sie Wert bringt, und still, wenn nicht.
 
 ---
 
@@ -865,7 +1004,7 @@ Extrahiert den relevanten Kontext aus einer laufenden Session in ein temporäres
 
 **Datei:** `.claude/skills/handoff/SKILL.md` · [im Repo ansehen](./skills/handoff/SKILL.md)
 
-```markdown
+````markdown
 ---
 name: handoff
 description: Extract relevant context from the current 
@@ -956,7 +1095,7 @@ cut it.
 2. Do NOT commit handoff.md — it is temporary.
 3. Remind the user to delete handoff.md after the 
    task is completed successfully.
-```
+````
 
 ### Warum funktioniert das?
 
@@ -1000,7 +1139,7 @@ Generiert einen Guided Review Brief mit Hotspots, Cross-Task Concerns und Blind 
 
 **Datei:** `.claude/skills/review/SKILL.md` · [im Repo ansehen](./skills/review/SKILL.md)
 
-```markdown
+````markdown
 ---
 name: review
 description: Generate a guided review brief. 
@@ -1079,6 +1218,8 @@ detection.
    - Read modified files in full (not just diffs)
      to understand surrounding context
    - Check if tests were added or updated
+   - Check the relevant `docs/task-log/` entry for Acceptance
+     Coverage and AC IDs when reviewing a task with a wrap-up log
 
 3. **Look deeper if something seems off:**
    - `git log -p <file>` for evolution of suspicious files
@@ -1090,12 +1231,24 @@ detection.
    - Are the same files modified across multiple tasks?
    - Is complexity growing in one area?
    - Are there emerging God-classes or God-modules?
+   - If the active plan has a `Cross-Cutting Acceptance` section,
+     read it and check each `XC-NN` against task logs and tests.
+
+   Cross-cutting check statuses:
+   - `passed` — at least one test or task log asserts the full
+     invariant.
+   - `unverified` — relevant modules were not touched, or no
+     evidence exists yet.
+   - `gap` — contributing tasks were touched but no evidence
+     covers the invariant.
 
 ## Quick mode output:
 
 ### Hotspots
 Ranked by risk. Each hotspot has:
 - Risk level: [HIGH] [MEDIUM] [LOW]
+- AC ID it touches (`T{N}-AC-{NN}` or `XC-NN`), or `no AC` if
+  the finding is outside the stated acceptance surface
 - File and line reference
 - What the concern is
 - What to check or consider
@@ -1120,7 +1273,21 @@ Files changed with paths for quick navigation.
 ### 2. Hotspots
 (as in quick mode)
 
-### 3. Cross-Task Concerns
+### 3. Cross-Cutting Acceptance Check
+If the active plan has a `Cross-Cutting Acceptance` section,
+report each `XC-NN`:
+
+- Evidence from task logs and tests.
+- `passed` if the full invariant is asserted.
+- `unverified` if the contributing modules were not touched or no
+  final integration task has run yet.
+- `gap` if contributing tasks were touched but no evidence covers
+  the invariant.
+
+A `gap` is a strong signal that an integration test or follow-up
+task is missing.
+
+### 4. Cross-Task Concerns
 Patterns across recent commits that only become 
 visible when looking at the bigger picture:
 - Repeated modifications to the same file
@@ -1128,22 +1295,22 @@ visible when looking at the bigger picture:
 - Inconsistent patterns across tasks
 - Architectural drift from the original plan
 
-### 4. Blind Spots
+### 5. Blind Spots
 (as in quick mode)
 
-### 5. Confidence Assessment
+### 6. Confidence Assessment
 Your honest assessment of:
 - Functional correctness
 - Error handling completeness
 - Consistency with existing codebase patterns
 - Test coverage adequacy
 
-### 6. Recommended Actions
+### 7. Recommended Actions
 Concrete next steps, if any:
 - Things to fix before merging
 - Things to verify manually
 - Things acceptable as follow-up tasks
-```
+````
 
 ---
 

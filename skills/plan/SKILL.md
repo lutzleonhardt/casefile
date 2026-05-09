@@ -66,12 +66,24 @@ If no argument is given, ask which spec to plan.
   rules, invariants — into `Instructions`, `Acceptance`, or
   `Key Discoveries`. A task that says "implement section 3.2 of
   the spec" is broken by definition.
-- **Acceptance built in.** Each task carries its own verification —
-  prefer automated tests (unit or integration). If automation is
-  a bad fit, acceptance may be omitted rather than prescribing
-  manual steps. For pure mechanical refactors with no behavior
-  change, acceptance is optional (existing tests staying green
-  is implicit).
+- **Acceptance built in and traceable.** Each task carries its
+  own verification — prefer automated tests (unit or integration).
+  Each acceptance criterion gets a stable ID:
+  `T{N}-AC-{NN}` where `{N}` is the task number exactly as written
+  in the plan (`T3`, `T3.5`, `T17`, ...) and `{NN}` is a zero-padded
+  counter starting at `01`. Use those IDs in `/start-task`,
+  `/wrap-up`, `/commit`, and `/review`.
+  - During draft planning, renumber freely until the user approves.
+  - After the plan is accepted/committed, AC IDs are append-only:
+    if an AC is dropped or reordered, leave a gap and do not
+    renumber existing IDs.
+  - A criterion is ID-worthy only if someone could later say
+    "cover T3-AC-04" and know what behavior is meant. Generic
+    bullets like "tests pass" are not acceptance criteria.
+  If automation is a bad fit, acceptance may be omitted rather
+  than prescribing manual steps. For pure mechanical refactors
+  with no behavior change, acceptance is optional (existing tests
+  staying green is implicit).
 - **No standalone "testing", "verification", or "stabilization"
   tasks.** Tests belong to the task that introduces the behavior.
   A separate test-task is a size smell — the behavior-task was
@@ -106,8 +118,19 @@ For each task, produce:
   self-contained: no references like "see spec" or "as in Task 2".
   The executing agent will read only this block plus the plan
   preamble.
-- **Acceptance** — how to verify success. Optional only for pure
-  mechanical refactors.
+- **Acceptance** — how to verify success. Each acceptance
+  criterion gets a stable ID `T{N}-AC-{NN}`:
+  - `N` is the task number exactly as written in the heading,
+    including point tasks such as `3.5`.
+  - `NN` is a zero-padded counter starting at `01`.
+  - IDs are stable after plan approval. Leave gaps instead of
+    renumbering if an AC is removed later.
+  - Prefer behavior phrasing: Given/When/Then or a compact
+    observable assertion.
+  - If this task contributes to a cross-cutting acceptance item,
+    mention the `XC-NN` ID here; `/start-task` will not load the
+    plan-end cross-cutting section by default.
+  Optional only for pure mechanical refactors.
 - **Key Locations** — files, fully qualified classes/methods
   likely to be touched.
 - **Key Discoveries** — facts from the spec or outside the key
@@ -142,6 +165,42 @@ can extract exactly one task block without loading siblings:
 Do not nest tasks under deeper headings (`### Task N`) and do
 not split a task across multiple `## Task N` occurrences — the
 extraction pattern anchors on `^## Task <number>`.
+
+## Cross-Cutting Acceptance
+
+If the plan has more than ~3 tasks or contains invariants that
+span task boundaries, add a short plan-end section:
+
+```
+## Cross-Cutting Acceptance
+
+- **XC-01** — <observable behavior no single task can prove alone>.
+  **Touches:** T1, T2, T3.
+```
+
+Rules:
+
+- Use IDs `XC-{NN}`. They are stable after plan approval and
+  append-only like task AC IDs.
+- Keep this section at the end of the plan, after the final task
+  block. `/start-task N` must not load it unless the requested
+  task block explicitly references an `XC-NN`.
+- Keep it short. If it grows past ~10 items, the per-task ACs are
+  probably under-specifying local invariants.
+- An `XC` item belongs here only if it cannot be fully proven by
+  one task on its own. Otherwise put it in the relevant task's
+  Acceptance section.
+- Each item must include a `Touches:` line listing contributing
+  task IDs.
+
+Good examples:
+
+- **XC-01** — The history log records exactly one durable entry per
+  successful mutating tool call and no entries for failed atomic
+  edits. **Touches:** T1, T2, T3.
+- **XC-02** — The prompt date, tool-scope date, and repository
+  search date use the same captured value within a turn.
+  **Touches:** T3, T3.5, T5.5.
 
 ## Flexibility clause (include verbatim in the plan)
 

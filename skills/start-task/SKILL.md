@@ -74,7 +74,8 @@ means Task 3).
    2) Risks
    3) File-level plan
    4) Testable artifact & review guard for the next task
-   5) Test plan
+   5) Test plan — list which AC IDs (`T{N}-AC-{NN}`) each
+      planned test or manual check covers
    6) Rollback plan
    
    Do not write code yet.
@@ -84,6 +85,12 @@ means Task 3).
    no clear answer, stop and flag back to the user — the task
    is likely too large or too vague. This gate also catches
    oversized tasks from plans written outside `/plan`.
+
+   Do not load the plan-end `Cross-Cutting Acceptance` section
+   during normal task start. If the requested task block itself
+   references an `XC-NN`, mention that this task contributes to it
+   in the test plan, but keep the task briefing grounded in the
+   task block.
 
 5. **Wait for user approval** before proceeding.
 

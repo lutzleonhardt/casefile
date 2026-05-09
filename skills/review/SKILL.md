@@ -76,6 +76,8 @@ detection.
    - Read modified files in full (not just diffs)
      to understand surrounding context
    - Check if tests were added or updated
+   - Check the relevant `docs/task-log/` entry for Acceptance
+     Coverage and AC IDs when reviewing a task with a wrap-up log
 
 3. **Look deeper if something seems off:**
    - `git log -p <file>` for evolution of suspicious files
@@ -87,12 +89,24 @@ detection.
    - Are the same files modified across multiple tasks?
    - Is complexity growing in one area?
    - Are there emerging God-classes or God-modules?
+   - If the active plan has a `Cross-Cutting Acceptance` section,
+     read it and check each `XC-NN` against task logs and tests.
+
+   Cross-cutting check statuses:
+   - `passed` — at least one test or task log asserts the full
+     invariant.
+   - `unverified` — relevant modules were not touched, or no
+     evidence exists yet.
+   - `gap` — contributing tasks were touched but no evidence
+     covers the invariant.
 
 ## Quick mode output:
 
 ### Hotspots
 Ranked by risk. Each hotspot has:
 - Risk level: [HIGH] [MEDIUM] [LOW]
+- AC ID it touches (`T{N}-AC-{NN}` or `XC-NN`), or `no AC` if
+  the finding is outside the stated acceptance surface
 - File and line reference
 - What the concern is
 - What to check or consider
@@ -117,7 +131,21 @@ Files changed with paths for quick navigation.
 ### 2. Hotspots
 (as in quick mode)
 
-### 3. Cross-Task Concerns
+### 3. Cross-Cutting Acceptance Check
+If the active plan has a `Cross-Cutting Acceptance` section,
+report each `XC-NN`:
+
+- Evidence from task logs and tests.
+- `passed` if the full invariant is asserted.
+- `unverified` if the contributing modules were not touched or no
+  final integration task has run yet.
+- `gap` if contributing tasks were touched but no evidence covers
+  the invariant.
+
+A `gap` is a strong signal that an integration test or follow-up
+task is missing.
+
+### 4. Cross-Task Concerns
 Patterns across recent commits that only become 
 visible when looking at the bigger picture:
 - Repeated modifications to the same file
@@ -125,17 +153,17 @@ visible when looking at the bigger picture:
 - Inconsistent patterns across tasks
 - Architectural drift from the original plan
 
-### 4. Blind Spots
+### 5. Blind Spots
 (as in quick mode)
 
-### 5. Confidence Assessment
+### 6. Confidence Assessment
 Your honest assessment of:
 - Functional correctness
 - Error handling completeness
 - Consistency with existing codebase patterns
 - Test coverage adequacy
 
-### 6. Recommended Actions
+### 7. Recommended Actions
 Concrete next steps, if any:
 - Things to fix before merging
 - Things to verify manually

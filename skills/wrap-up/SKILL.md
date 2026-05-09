@@ -106,6 +106,10 @@ output as follows:
   are part of the record.
 - **Test Evidence**: append new evidence under a session
   marker. Accumulates across sessions.
+- **Acceptance Coverage**: union the AC IDs. If an AC was
+  partial/skipped in the prior session and is now passed, replace
+  it. If it was passed and now regresses, surface that explicitly
+  instead of silently downgrading it.
 - **Open Issues**: merge; drop issues that are now resolved
   (note them in the session marker if helpful).
 - **Context for Next Task**: replace with the current view —
@@ -158,6 +162,23 @@ What was tested and how. Include:
 - Test commands run and their output
 - Manual verification steps taken
 - Screenshots or log snippets if relevant
+
+### Acceptance Coverage
+One line per AC ID from the task's plan block.
+
+Status values:
+- `passed` — automated test exists and is green; reference the
+  test file/test name or command output.
+- `partial` — covered manually, or automated coverage stops short
+  of the full AC; explain the gap.
+- `skipped` — explicitly not addressed this session; explain why
+  and reference a follow-up task if applicable.
+- `N/A` — AC was dropped by an approved plan amendment; leave a
+  one-line note and keep the ID visible.
+
+If any AC is `skipped` and that was not a deliberate scope decision,
+the task is not ready for `/commit N`. Finish the AC or split the
+remaining work into a follow-up task before committing.
 
 ### Open Issues
 Unfinished work, known issues, open questions.

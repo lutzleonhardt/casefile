@@ -54,6 +54,8 @@ Extract:
 - **Status** (`DONE` or `BLOCKED`).
 - **Files Modified** list — the canonical list of source
   files that should be staged.
+- **Acceptance Coverage** — note covered, partial, skipped, or
+  deferred AC IDs for the optional commit body.
 - For BLOCKED: note the Re-Plan Proposal if present and
   identify the plan file path referenced.
 
@@ -99,7 +101,18 @@ Do not auto-resolve any of these — surface them and wait.
 - **BLOCKED without re-plan:** `task-N: blocked — <reason>`
 
 Keep messages short (≤ 72 chars for the subject line). No
-automatic body unless the user asks for one.
+automatic body unless the user asks for one or the Acceptance
+Coverage section contains anything other than `passed`.
+
+When a body is warranted, keep it short and traceable:
+
+```
+Covers T{N}-AC-01..05
+Partial T{N}-AC-06: <reason>
+Defers T{N}-AC-07 -> Task M
+```
+
+Prefer `Covers` over `Closes`; AC IDs are not issue IDs.
 
 ### 5. Show the commit plan
 
@@ -116,6 +129,7 @@ Present a single block to the user containing:
   ```
   git add <file1> <file2> ...
   git commit -m "<message>"
+  # or: git commit -m "<message>" -m "<body>" when a body is used
   ```
 
 End with a confirmation prompt, e.g.:
@@ -125,8 +139,9 @@ End with a confirmation prompt, e.g.:
 ### 6. Act on the response
 
 - **`yes` / `ok` / `commit`** — run `git add <files>` then
-  `git commit -m "<message>"`. Show the resulting commit
-  hash and a one-line confirmation.
+  `git commit -m "<message>"` (plus `-m "<body>"` if the shown
+  plan included a body). Show the resulting commit hash and a
+  one-line confirmation.
 - **`edit message`** — accept a revised message from the
   user and re-show the plan for confirmation. Do not
   commit until re-confirmed.
