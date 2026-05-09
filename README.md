@@ -423,7 +423,7 @@ Bootstrapped eine neue Task-Session mit dem richtigen Kontext. Verhindert, dass 
 ---
 name: start-task
 description: Bootstrap a new task session with plan context, 
-  previous task summary, and current git state.
+  task-history context, and git history.
 ---
 # Start Task
 
@@ -466,15 +466,49 @@ means Task 3).
      the user before proceeding — the plan violates `/plan`'s
      self-containment rule and should be amended first.
 
-2. **Read the previous task summary.** Look in:
-   - `docs/task-log/` for the most recent summary file
-   - Use `ls -t docs/task-log/ | head -1` to find it
-   - If this is Task 1, skip this step
+2. **Read task-history context.** Tasks build on each other, so
+   the direct predecessor is the fast path — but earlier tasks can
+   matter too. Reading older task logs is *history retrieval*, not
+   a violation of task isolation: the isolation rule applies to
+   sibling **plan** tasks, not to past **logs**.
+   - **Direct predecessor (fast path):** read
+     `docs/task-log/task-{N-1}-*.md`. Use the deterministic
+     numbered path — `ls -t` is unreliable, because a re-run of
+     `/wrap-up M` for an older task can give its file a newer
+     mtime than the real predecessor. Use `ls -t` only as a legacy
+     fallback if the numbered glob returns nothing, and mark that
+     fallback explicitly in the briefing.
+   - If this is Task 1, skip the predecessor read.
+   - **Bounded relevance search across older logs.** Extract
+     concrete terms from the requested task block — file paths,
+     class/function names, AC IDs, domain terms, referenced
+     interfaces — and search `docs/task-log/` with `rg`. Example:
+     for a task block mentioning `BuildToolsPolicy` and
+     `tools/build-tools.ts`:
+     `rg -n 'BuildToolsPolicy|build-tools\.ts' docs/task-log/`
+     Avoid generic terms (`service`, `config`, `handler`) — they
+     match everywhere and produce noise.
+   - **Hard cap:** read at most 2–3 additional logs beyond the
+     predecessor. If more look relevant, surface the candidates
+     to the user instead of reading all of them.
+   - For each older log you read, note one sentence on *why* it
+     was relevant. If no older logs are relevant, say so
+     explicitly in the briefing.
 
-3. **Check git state:**
-   - `git log --oneline -5` — recent commits
-   - `git status --short` — any uncommitted changes
-   - `git diff --stat HEAD~1` — what changed last
+3. **Check git history.**
+   - `git log --oneline -10` — recent commits.
+   - `git status --short` — any uncommitted changes.
+   - `git diff --stat HEAD~1` — what changed last.
+   - **Per-file history when the task touches known files:**
+     `git log --oneline -- <file>` for each key file named in the
+     task block.
+   - **Optional pickaxe** — only when a symbol is central or its
+     history looks suspicious, and **always file-scoped**:
+     `git log -p -S'<symbol>' -- <file>`. The unscoped form scans
+     every commit and produces huge output; do not use it as a
+     default.
+   - `git show <hash>` only for commits that look directly
+     relevant to the task.
 
 4. **Produce a Task Briefing** with this structure:
 
@@ -482,10 +516,12 @@ means Task 3).
    
    **Scope:** What this task should accomplish (from plan)
    
-   **Context from previous task:**
-   - Key decisions made
-   - Files modified
-   - Open issues carried forward
+   **Task-history context:**
+   - Direct predecessor: key decisions, files modified, open
+     issues carried forward
+   - Earlier related task logs consulted, each with a one-line
+     *why*. State explicitly if none were relevant.
+   - Relevant git-history findings (per-file or per-symbol), if any
    
    **Current repo state:**
    - Recent commits
