@@ -1,7 +1,8 @@
 ---
 name: plan
 description: Break a spec into a right-sized, testable task plan.
-  Produces a proposal; writes to docs/plans/ only after user approval.
+  Produces a proposal; writes to the branch-scoped docs/work/ plan only
+  after user approval.
   Each task is sized so that its diff + test could land as a single commit.
 ---
 # Plan a Spec
@@ -13,6 +14,35 @@ a linked issue) and wants to turn it into an ordered task list that
 Use `$ARGUMENTS` to locate the spec (e.g. `/plan docs/specs/auth-rewrite.md`).
 If no argument is given, ask which spec to plan.
 
+## Work scope
+
+Task plans and logs are scoped by the current git branch so parallel
+worktrees can use simple task numbers without colliding.
+
+Create or switch to the feature branch before running `/plan`. The
+branch is the unit of work: one branch has one active work plan at
+`docs/work/<scope>/plan.md`.
+
+Before locating or writing plan artifacts, determine the active work root:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before planning task work.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If a branch is
+renamed, rename the matching `docs/work/<old-scope>/` directory in the
+same commit or keep using the old branch name. Legacy artifacts in
+`docs/plans/` and `docs/task-log/` must be migrated before using the
+scoped workflow.
+
 ## Workflow
 
 1. **Read the spec in full.** Do not plan from a summary — read the
@@ -20,38 +50,37 @@ If no argument is given, ask which spec to plan.
 
 2. **Check repo state:**
    - `git log --oneline -10`
-   - `ls docs/task-log/ 2>/dev/null` — is there related recent work?
-   - `ls docs/plans/ 2>/dev/null` — does a plan already exist for this spec?
+   - `ls docs/work/<scope>/task-log/ 2>/dev/null` — is there related
+     recent work in this branch scope?
+   - `test -f docs/work/<scope>/plan.md && echo exists` — does a plan
+     already exist for this branch scope?
 
-3. **Pick the starting task number.** Task numbers are
-   **globally sequential across the repo**, not local to one
-   plan. To find the right starting number:
+3. **Pick the starting task number.** Task numbers are local to
+   `docs/work/<scope>/`. In a fresh scope, start at 1. If the scoped
+   plan or task log already exists, continue after the highest local
+   task number:
 
    ```
-   ls docs/task-log/task-*.md 2>/dev/null
-   grep -h '^## Task ' docs/plans/*.md 2>/dev/null
+   ls docs/work/<scope>/task-log/task-*.md 2>/dev/null
+   grep -h '^## Task ' docs/work/<scope>/plan.md 2>/dev/null
    ```
 
    Take the highest `N` that appears in either output (a logged
-   task or a not-yet-wrapped-up task in another plan) and start
-   this plan at `N + 1`. If both queries return empty, this is
-   the first plan in the repo — start at 1.
+   task or a not-yet-wrapped-up task in the scoped plan) and start
+   at `N + 1`.
 
-   Why globally sequential: the whole skill chain
-   (`/start-task`, `/wrap-up`, `/commit`, `/handoff`) keys off
-   a single integer plus the file convention
-   `task-N-{slug}.md`. Restarting numbering per plan or per
-   milestone breaks that integer's uniqueness and produces
-   filename collisions in `docs/task-log/`. The plan filename
-   (`docs/plans/{slug}.md`) already carries milestone identity
-   when needed; the task number does not have to.
+   Why branch-scoped: the whole skill chain (`/start-task`,
+   `/wrap-up`, `/commit`, `/handoff`) can keep the fast daily shape
+   (`/start-task N`) while avoiding collisions between parallel
+   worktrees. `task-N-{slug}.md` only has to be unique inside
+   `docs/work/<scope>/task-log/`.
 
 4. **Propose a task breakdown** following the rules below.
    Present it to the user **before** writing any file.
 
 5. **Wait for user approval.** Only then write to
-   `docs/plans/{slug}.md`. If a plan file already exists, propose
-   an edit rather than overwriting — the user decides.
+   `docs/work/<scope>/plan.md`. If a scoped plan file already exists,
+   propose an edit rather than overwriting — the user decides.
 
 ## Task-sizing rules (apply to EACH task)
 
@@ -149,15 +178,9 @@ can extract exactly one task block without loading siblings:
   Keep it compact (≤ 30 lines). This is the only cross-cutting
   context `/start-task` will load alongside the requested task.
 - **Task heading** — `## Task N` or `## Task N: <title>` on its
-  own line. Numbering is globally sequential across the whole
-  repo (see Workflow step 3) — a new plan does **not** restart
-  at 1 if prior tasks already exist. If the new plan's first
-  task is, say, Task 17, that's correct; the gap (Tasks 1–16
-  live in earlier plans / earlier milestones) is intentional
-  and is the cost of keeping every `task-N-{slug}.md` filename
-  globally unique. Optionally add a one-line preamble note
-  ("Task numbering continues from <prior-plan>; last task = N.")
-  to spare future readers the lookup.
+  own line. Numbering is sequential inside `docs/work/<scope>/`.
+  A different branch scope may also have `Task 1`; that is correct.
+  The directory is the uniqueness boundary.
 - **Task block** — from `## Task N` up to (but excluding) the
   next `## Task M` heading or EOF. `/start-task N` extracts
   exactly this block.
@@ -210,7 +233,8 @@ Good examples:
 >
 > When a task is finished (DONE or BLOCKED), close it with the
 > `/wrap-up N` → `/commit N` pair. `/wrap-up N` writes or extends
-> `docs/task-log/task-{N}-{slug}.md` and is safe to run multiple
+> `docs/work/<scope>/task-log/task-{N}-{slug}.md`, where `<scope>`
+> is derived from the current git branch, and is safe to run multiple
 > times across sessions — it merges. `/commit N` reads that log,
 > stages code + summary, and commits them together after showing
 > the plan and waiting for confirmation. Optionally run `/review`
@@ -222,13 +246,13 @@ This keeps the plan a guide, not a straitjacket — and gives every
 
 ## After user approval
 
-1. Write the plan to `docs/plans/{slug}.md`. Create `docs/plans/`
-   if it does not exist.
+1. Write the plan to `docs/work/<scope>/plan.md`. Create
+   `docs/work/<scope>/` if it does not exist.
 2. Do NOT commit automatically. Tell the user:
-   > Plan is ready at `docs/plans/{slug}.md`.
+   > Plan is ready at `docs/work/<scope>/plan.md`.
    > Recommended commit:
    > ```bash
-   > git add docs/plans/<file>
+   > git add docs/work/<scope>/plan.md
    > git commit -m "plan: <spec title>"
    > ```
 3. The plan now feeds `/start-task N` for execution.

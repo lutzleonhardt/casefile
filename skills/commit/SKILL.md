@@ -17,6 +17,27 @@ confirmation. If the user says anything other than a clear
 "yes" / "ok" / "commit", abort without running any git
 command.
 
+## Work scope
+
+Resolve the active work root before locating the task log:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before running git commands.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If
+`docs/work/<scope>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch or migrate the old plan/task logs into this scoped
+work root. Legacy `docs/task-log/` is not an automatic fallback.
+
 ## Task identity — `$ARGUMENTS`
 
 Use `$ARGUMENTS` to identify the task being committed
@@ -36,15 +57,15 @@ Resolution rules, in order:
 ### 1. Locate the log file
 
 ```
-ls docs/task-log/task-{N}-*.md
+ls docs/work/<scope>/task-log/task-{N}-*.md
 ```
 
 - **Exactly one file** — continue.
 - **No file** — stop. Tell the user:
   > No wrap-up summary found for Task N. Run `/wrap-up N`
   > first.
-- **Multiple files** — stop. Filename convention violated;
-  ask the user to consolidate before committing.
+- **Multiple files** — stop. Filename convention violated inside this
+  work scope; ask the user to consolidate before committing.
 
 ### 2. Read the log file
 
@@ -86,11 +107,11 @@ Do not auto-resolve any of these — surface them and wait.
 
 **Staging list:**
 
-- The log file: `docs/task-log/task-{N}-{slug}.md`
+- The log file: `docs/work/<scope>/task-log/task-{N}-{slug}.md`
 - Every file in the log's `Files Modified` section that
   exists in the working tree or index.
 - For BLOCKED with Re-Plan: also include
-  `docs/plans/<plan-file>.md` (the updated plan).
+  `docs/work/<scope>/plan.md` (the updated plan).
 
 **Commit message template:**
 

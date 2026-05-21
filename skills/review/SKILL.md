@@ -76,21 +76,24 @@ detection.
    - Read modified files in full (not just diffs)
      to understand surrounding context
    - Check if tests were added or updated
-   - Check the relevant `docs/task-log/` entry for Acceptance
-     Coverage and AC IDs when reviewing a task with a wrap-up log
+   - Check the relevant `docs/work/<scope>/task-log/` entry for
+     Acceptance Coverage and AC IDs when reviewing a task with a
+     wrap-up log. Derive `<scope>` from the current git branch the
+     same way as `/start-task`.
 
 3. **Look deeper if something seems off:**
    - `git log -p <file>` for evolution of suspicious files
    - `git blame` to understand who/what introduced patterns
-   - Check `docs/task-log/` for task summaries 
-     that explain intent
+   - Check `docs/work/<scope>/task-log/` for task summaries that
+     explain intent.
 
 4. **Full mode only — check for cross-task patterns:**
    - Are the same files modified across multiple tasks?
    - Is complexity growing in one area?
    - Are there emerging God-classes or God-modules?
-   - If the active plan has a `Cross-Cutting Acceptance` section,
-     read it and check each `XC-NN` against task logs and tests.
+   - Read the active plan at `docs/work/<scope>/plan.md`. If it has a
+     `Cross-Cutting Acceptance` section, check each `XC-NN` against
+     task logs and tests.
 
    Cross-cutting check statuses:
    - `passed` — at least one test or task log asserts the full

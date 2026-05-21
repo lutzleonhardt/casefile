@@ -31,10 +31,11 @@ project-root/
 ├── docs/
 │   ├── specs/                     # Intent: was wird gebaut und warum (Input für /plan)
 │   │   └── <feature>.md
-│   ├── plans/                     # Scope: Task-Reihenfolge (Output /plan, Input /start-task)
-│   │   └── <feature>.md
-│   └── task-log/                  # Protokoll: was tatsächlich passiert ist (Output /wrap-up)
-│       └── task-{N}-{slug}.md
+│   └── work/                      # Branch-scoped Arbeitsgedächtnis
+│       └── <branch-scope>/
+│           ├── plan.md            # Scope: Task-Reihenfolge
+│           └── task-log/          # Protokoll: was tatsächlich passiert ist
+│               └── task-{N}-{slug}.md
 ├── handoff.md                     # Temporär, gitignored (Output /handoff)
 └── .gitignore
 ```
@@ -47,7 +48,9 @@ project-root/
 
 **Datenfluss zwischen den Skills:**
 
-`docs/specs/X.md` → `/plan` → `docs/plans/X.md` → `/start-task N` → Implementierung → `/wrap-up N` → `docs/task-log/task-N-{slug}.md` → `/commit N` → atomarer Commit (Code + Summary).
+`docs/specs/X.md` → `/plan` → `docs/work/<branch-scope>/plan.md` → `/start-task N` → Implementierung → `/wrap-up N` → `docs/work/<branch-scope>/task-log/task-N-{slug}.md` → `/commit N` → atomarer Commit (Code + Summary).
+
+`<branch-scope>` wird automatisch aus dem aktuellen Git-Branch abgeleitet: `main` bleibt `main`, `master` bleibt `master`, `feature/f1234-user-import` wird zu `f1234-user-import`. Dadurch bleibt der tägliche Flow kurz (`/start-task 2`), aber parallele Worktrees schreiben nicht mehr in denselben globalen Task-Log.
 
 `/wrap-up N` darf über mehrere Sessions hinweg mehrfach laufen — neue Findings werden in dieselbe Log-Datei gemerged, bis `/commit N` den Task abschließt.
 
@@ -63,7 +66,7 @@ Jeder Skill ist eine `SKILL.md`-Datei in einem eigenen Unterordner. Das Repo lie
 
 ```
 "Claude, lies die README.md in diesem Repo und leg die sechs Skills projekt-lokal unter .claude/skills/ an.
-Lege außerdem docs/specs/, docs/plans/, docs/task-log/ an und ergänze handoff.md in .gitignore."
+Lege außerdem docs/specs/ an und ergänze handoff.md in .gitignore. docs/work/<branch-scope>/ wird vom ersten /plan angelegt."
 ```
 
 Das funktioniert, weil die vollständigen Skill-Bodies weiter unten eingebettet sind. Für den Moment, in dem das System zum ersten Mal in einem Repo eingerichtet wird, ist das der kürzeste Weg — Claude holt sich nebenbei den Kontext, *warum* die Skills so aussehen, wie sie aussehen.
@@ -79,7 +82,8 @@ mkdir -p .claude/skills
 cp -r /pfad/zu/skill-kit-agentic-workflow/skills/* .claude/skills/
 
 # Prozess-Artefakt-Ordner
-mkdir -p docs/{specs,plans,task-log}
+mkdir -p docs/specs
+touch docs/specs/.gitkeep
 
 # handoff.md ist temporär — nicht versehentlich committen
 echo "handoff.md" >> .gitignore
@@ -93,6 +97,33 @@ git commit -m "chore: agentic workflow scaffold"
 - **Global** (`~/.claude/skills/`) — über alle Projekte verfügbar, nicht versioniert. Gut für den Solo-Einstieg.
 - **Projekt-lokal** (`.claude/skills/`) — im Repo versioniert, teambar, per Fork anpassbar. **Das ist für den Workshop und Team-Setups die bessere Wahl.**
 
+### Branch-Scope und Migration
+
+Neue Arbeit lebt unter `docs/work/<branch-scope>/`. Der Scope kommt aus
+dem aktuellen Git-Branch: `main` bleibt `main`, `master` bleibt `master`,
+`feature/f1234-user-import` wird zu `f1234-user-import`.
+
+Wichtig:
+
+- Lege den Feature-Branch **vor** `/plan` an. Wer auf `main` plant,
+  bekommt bewusst `docs/work/main/`.
+- Ein Branch hat genau einen aktiven Work-Plan:
+  `docs/work/<branch-scope>/plan.md`.
+- Wenn ein Branch umbenannt wird, benenne auch
+  `docs/work/<old-scope>/` um. Die Skills raten nicht über andere
+  Work-Ordner.
+- Alte Artefakte aus `docs/plans/` und `docs/task-log/` werden nicht
+  automatisch gelesen. Migriere sie einmalig in den passenden
+  `docs/work/<branch-scope>/`-Ordner.
+
+Beispiel-Migration:
+
+```bash
+mkdir -p docs/work/f1234-user-import/task-log
+git mv docs/plans/user-import.md docs/work/f1234-user-import/plan.md
+git mv docs/task-log/task-*.md docs/work/f1234-user-import/task-log/
+```
+
 ### Trennung: Tool-Config vs. Prozess-Artefakte
 
 Wichtig für das Mental Model:
@@ -100,8 +131,8 @@ Wichtig für das Mental Model:
 - **`.claude/`** ist Tool-Konfiguration — Skills und `settings.json`. Bleibt klein, bleibt Claude-Code-spezifisch.
 - **`docs/`** ist das Prozess-Gedächtnis des Projekts — tool-agnostisch, sprechend benannt, lesbar auch ohne Claude Code:
   - `docs/specs/` — was gebaut werden soll und warum
-  - `docs/plans/` — Reihenfolge und Scope
-  - `docs/task-log/` — was tatsächlich passiert ist (Task-Summaries)
+  - `docs/work/<branch-scope>/plan.md` — Reihenfolge und Scope für den aktuellen Branch
+  - `docs/work/<branch-scope>/task-log/` — was tatsächlich passiert ist (Task-Summaries)
 
 Task-Summaries gehören **nicht** in `.claude/` — sie sind Projekt-Dokumentation, keine Tool-Config. Wenn das Team morgen auf Cursor oder Codex wechselt, wandert der Task-Log mit, die Skills nicht.
 
@@ -137,12 +168,12 @@ Task-Summaries gehören **nicht** in `.claude/` — sie sind Projekt-Dokumentati
 | **Situation** | Task ist fertig (oder blockiert)                             | Task ist nicht fertig, aber Context wird knapp               |
 | **Ergebnis**  | Task-Summary im Repo, von `/commit` gemeinsam mit Code committet | Temporäre `handoff.md` für die nächste Session               |
 | **Danach**    | Nächster Task                                                | Gleicher Task fortsetzen in frischer Session                 |
-| **Datei**     | `docs/task-log/task-{N}-{slug}.md` (persistent)              | `handoff.md` im Projekt-Root (temporär, nach Erfolg löschen) |
+| **Datei**     | `docs/work/<branch-scope>/task-log/task-{N}-{slug}.md` (persistent) | `handoff.md` im Projekt-Root (temporär, nach Erfolg löschen) |
 | **Analogie**  | Schichtprotokoll + Übergabe zum Commit                       | Staffelstab                                                  |
 
 ### Der Closing-Flow im Detail
 
-`/wrap-up N` schreibt oder **erweitert** `docs/task-log/task-{N}-{slug}.md`. Wird der Skill mehrfach für denselben Task aufgerufen (egal in welcher Session), merged er die neuen Findings in dieselbe Datei — keine Overwrites, kein Datenverlust, kein Date-in-Filename-Streit. Erst `/commit N` zieht den Schlussstrich: Skill liest das Log, baut Staging-Liste und Commit-Message daraus auf, zeigt den Plan, wartet auf Bestätigung, führt dann `git add` + `git commit` aus. Für DONE ein `task-N:`-Commit, für BLOCKED mit Re-Plan ein `replan:`-Commit.
+`/wrap-up N` schreibt oder **erweitert** `docs/work/<branch-scope>/task-log/task-{N}-{slug}.md`. Wird der Skill mehrfach für denselben Task aufgerufen (egal in welcher Session), merged er die neuen Findings in dieselbe Datei — keine Overwrites, kein Datenverlust, kein Date-in-Filename-Streit. Erst `/commit N` zieht den Schlussstrich: Skill liest das Log, baut Staging-Liste und Commit-Message daraus auf, zeigt den Plan, wartet auf Bestätigung, führt dann `git add` + `git commit` aus. Für DONE ein `task-N:`-Commit, für BLOCKED mit Re-Plan ein `replan:`-Commit.
 
 Damit ergeben sich mehrere legitime Rhythmen:
 
@@ -156,7 +187,7 @@ Die Freiheit liegt im Split zwischen „Protokoll erweitern" und „committen". 
 
 ## 1. /plan
 
-Nimmt eine Spec (aus `docs/specs/`, Chat oder Issue) und schlägt einen passend geschnittenen Task-Plan für `docs/plans/` vor. Die Slicing-Regeln sind so gewählt, dass Plan-Entry und späterer `/commit`-Commit denselben Standard teilen — *ein Task = ein kohärenter, testbarer Commit*.
+Nimmt eine Spec (aus `docs/specs/`, Chat oder Issue) und schlägt einen passend geschnittenen Task-Plan für `docs/work/<branch-scope>/plan.md` vor. Die Slicing-Regeln sind so gewählt, dass Plan-Entry und späterer `/commit`-Commit denselben Standard teilen — *ein Task = ein kohärenter, testbarer Commit*.
 
 **Datei:** `.claude/skills/plan/SKILL.md` · [im Repo ansehen](./skills/plan/SKILL.md)
 
@@ -164,7 +195,8 @@ Nimmt eine Spec (aus `docs/specs/`, Chat oder Issue) und schlägt einen passend 
 ---
 name: plan
 description: Break a spec into a right-sized, testable task plan.
-  Produces a proposal; writes to docs/plans/ only after user approval.
+  Produces a proposal; writes to the branch-scoped docs/work/ plan only
+  after user approval.
   Each task is sized so that its diff + test could land as a single commit.
 ---
 # Plan a Spec
@@ -176,6 +208,35 @@ a linked issue) and wants to turn it into an ordered task list that
 Use `$ARGUMENTS` to locate the spec (e.g. `/plan docs/specs/auth-rewrite.md`).
 If no argument is given, ask which spec to plan.
 
+## Work scope
+
+Task plans and logs are scoped by the current git branch so parallel
+worktrees can use simple task numbers without colliding.
+
+Create or switch to the feature branch before running `/plan`. The
+branch is the unit of work: one branch has one active work plan at
+`docs/work/<scope>/plan.md`.
+
+Before locating or writing plan artifacts, determine the active work root:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before planning task work.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If a branch is
+renamed, rename the matching `docs/work/<old-scope>/` directory in the
+same commit or keep using the old branch name. Legacy artifacts in
+`docs/plans/` and `docs/task-log/` must be migrated before using the
+scoped workflow.
+
 ## Workflow
 
 1. **Read the spec in full.** Do not plan from a summary — read the
@@ -183,38 +244,37 @@ If no argument is given, ask which spec to plan.
 
 2. **Check repo state:**
    - `git log --oneline -10`
-   - `ls docs/task-log/ 2>/dev/null` — is there related recent work?
-   - `ls docs/plans/ 2>/dev/null` — does a plan already exist for this spec?
+   - `ls docs/work/<scope>/task-log/ 2>/dev/null` — is there related
+     recent work in this branch scope?
+   - `test -f docs/work/<scope>/plan.md && echo exists` — does a plan
+     already exist for this branch scope?
 
-3. **Pick the starting task number.** Task numbers are
-   **globally sequential across the repo**, not local to one
-   plan. To find the right starting number:
+3. **Pick the starting task number.** Task numbers are local to
+   `docs/work/<scope>/`. In a fresh scope, start at 1. If the scoped
+   plan or task log already exists, continue after the highest local
+   task number:
 
    ```
-   ls docs/task-log/task-*.md 2>/dev/null
-   grep -h '^## Task ' docs/plans/*.md 2>/dev/null
+   ls docs/work/<scope>/task-log/task-*.md 2>/dev/null
+   grep -h '^## Task ' docs/work/<scope>/plan.md 2>/dev/null
    ```
 
    Take the highest `N` that appears in either output (a logged
-   task or a not-yet-wrapped-up task in another plan) and start
-   this plan at `N + 1`. If both queries return empty, this is
-   the first plan in the repo — start at 1.
+   task or a not-yet-wrapped-up task in the scoped plan) and start
+   at `N + 1`.
 
-   Why globally sequential: the whole skill chain
-   (`/start-task`, `/wrap-up`, `/commit`, `/handoff`) keys off
-   a single integer plus the file convention
-   `task-N-{slug}.md`. Restarting numbering per plan or per
-   milestone breaks that integer's uniqueness and produces
-   filename collisions in `docs/task-log/`. The plan filename
-   (`docs/plans/{slug}.md`) already carries milestone identity
-   when needed; the task number does not have to.
+   Why branch-scoped: the whole skill chain (`/start-task`,
+   `/wrap-up`, `/commit`, `/handoff`) can keep the fast daily shape
+   (`/start-task N`) while avoiding collisions between parallel
+   worktrees. `task-N-{slug}.md` only has to be unique inside
+   `docs/work/<scope>/task-log/`.
 
 4. **Propose a task breakdown** following the rules below.
    Present it to the user **before** writing any file.
 
 5. **Wait for user approval.** Only then write to
-   `docs/plans/{slug}.md`. If a plan file already exists, propose
-   an edit rather than overwriting — the user decides.
+   `docs/work/<scope>/plan.md`. If a scoped plan file already exists,
+   propose an edit rather than overwriting — the user decides.
 
 ## Task-sizing rules (apply to EACH task)
 
@@ -312,15 +372,9 @@ can extract exactly one task block without loading siblings:
   Keep it compact (≤ 30 lines). This is the only cross-cutting
   context `/start-task` will load alongside the requested task.
 - **Task heading** — `## Task N` or `## Task N: <title>` on its
-  own line. Numbering is globally sequential across the whole
-  repo (see Workflow step 3) — a new plan does **not** restart
-  at 1 if prior tasks already exist. If the new plan's first
-  task is, say, Task 17, that's correct; the gap (Tasks 1–16
-  live in earlier plans / earlier milestones) is intentional
-  and is the cost of keeping every `task-N-{slug}.md` filename
-  globally unique. Optionally add a one-line preamble note
-  ("Task numbering continues from <prior-plan>; last task = N.")
-  to spare future readers the lookup.
+  own line. Numbering is sequential inside `docs/work/<scope>/`.
+  A different branch scope may also have `Task 1`; that is correct.
+  The directory is the uniqueness boundary.
 - **Task block** — from `## Task N` up to (but excluding) the
   next `## Task M` heading or EOF. `/start-task N` extracts
   exactly this block.
@@ -373,7 +427,8 @@ Good examples:
 >
 > When a task is finished (DONE or BLOCKED), close it with the
 > `/wrap-up N` → `/commit N` pair. `/wrap-up N` writes or extends
-> `docs/task-log/task-{N}-{slug}.md` and is safe to run multiple
+> `docs/work/<scope>/task-log/task-{N}-{slug}.md`, where `<scope>`
+> is derived from the current git branch, and is safe to run multiple
 > times across sessions — it merges. `/commit N` reads that log,
 > stages code + summary, and commits them together after showing
 > the plan and waiting for confirmation. Optionally run `/review`
@@ -385,13 +440,13 @@ This keeps the plan a guide, not a straitjacket — and gives every
 
 ## After user approval
 
-1. Write the plan to `docs/plans/{slug}.md`. Create `docs/plans/`
-   if it does not exist.
+1. Write the plan to `docs/work/<scope>/plan.md`. Create
+   `docs/work/<scope>/` if it does not exist.
 2. Do NOT commit automatically. Tell the user:
-   > Plan is ready at `docs/plans/{slug}.md`.
+   > Plan is ready at `docs/work/<scope>/plan.md`.
    > Recommended commit:
    > ```bash
-   > git add docs/plans/<file>
+   > git add docs/work/<scope>/plan.md
    > git commit -m "plan: <spec title>"
    > ```
 3. The plan now feeds `/start-task N` for execution.
@@ -431,6 +486,28 @@ The user wants to begin a new task from the task plan.
 Use $ARGUMENTS to identify the task (e.g. "/start-task 3" 
 means Task 3).
 
+## Work scope
+
+Resolve the active work root before reading plan or task-log files:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before starting task work.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If
+`docs/work/<scope>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch or migrate the old plan/task logs into this scoped
+work root. Legacy paths (`docs/plans/*.md`, root `plan.md`, and
+`docs/task-log/`) are not automatic fallbacks.
+
 ## Your workflow:
 
 1. **Load the plan preamble + only the requested task block.**
@@ -439,9 +516,10 @@ means Task 3).
    distinct pieces of context, and only two apply now: the
    preamble (global rules) and the requested task block. Sibling
    tasks are explicitly out of scope.
-   - Locate the plan file: `docs/plans/*.md` or `plan.md` in the
-     project root. If no task number is given in $ARGUMENTS,
-     ask which task to start.
+   - Locate the plan file at `docs/work/<scope>/plan.md`. If it does
+     not exist, stop and ask the user to run `/plan` or migrate the
+     existing work artifacts into this scope. If no task number is given
+     in $ARGUMENTS, ask which task to start.
    - **Primary path — shell-free extraction via `grep` + `Read`:**
      1) `grep -n '^## Task [0-9]' <plan-file>` to list every task
         heading with its line number.
@@ -472,20 +550,19 @@ means Task 3).
    a violation of task isolation: the isolation rule applies to
    sibling **plan** tasks, not to past **logs**.
    - **Direct predecessor (fast path):** read
-     `docs/task-log/task-{N-1}-*.md`. Use the deterministic
-     numbered path — `ls -t` is unreliable, because a re-run of
-     `/wrap-up M` for an older task can give its file a newer
-     mtime than the real predecessor. Use `ls -t` only as a legacy
-     fallback if the numbered glob returns nothing, and mark that
-     fallback explicitly in the briefing.
+     `docs/work/<scope>/task-log/task-{N-1}-*.md`. Use the
+     deterministic numbered path — `ls -t` is unreliable, because
+     a re-run of `/wrap-up M` for an older task can give its file a
+     newer mtime than the real predecessor.
    - If this is Task 1, skip the predecessor read.
    - **Bounded relevance search across older logs.** Extract
      concrete terms from the requested task block — file paths,
      class/function names, AC IDs, domain terms, referenced
-     interfaces — and search `docs/task-log/` with `rg`. Example:
+     interfaces — and search `docs/work/<scope>/task-log/` with
+     `rg`. Example:
      for a task block mentioning `BuildToolsPolicy` and
      `tools/build-tools.ts`:
-     `rg -n 'BuildToolsPolicy|build-tools\.ts' docs/task-log/`
+     `rg -n 'BuildToolsPolicy|build-tools\.ts' docs/work/<scope>/task-log/`
      Avoid generic terms (`service`, `config`, `handler`) — they
      match everywhere and produce noise.
    - **Hard cap:** read at most 2–3 additional logs beyond the
@@ -557,8 +634,9 @@ means Task 3).
    the closing pair — do **not** execute either step automatically,
    these are user decisions:
    - `/wrap-up N` — writes or extends
-     `docs/task-log/task-{N}-{slug}.md`. Safe to run multiple
-     times across sessions before committing; findings are merged.
+     `docs/work/<scope>/task-log/task-{N}-{slug}.md`. Safe to run
+     multiple times across sessions before committing; findings are
+     merged.
    - `/commit N` — stages code + summary from the log and commits
      them together (after showing the plan and waiting for
      confirmation).
@@ -577,7 +655,7 @@ means Task 3).
 
 ## 3. /wrap-up
 
-Schreibt oder **erweitert** die Task-Summary unter `docs/task-log/`. Das Kern-Skill des gesamten Workflows — sorgt für die Seed-Kette zwischen Tasks. Läuft entweder einmal am Ende (fast path) oder mehrfach über mehrere Sessions, bevor `/commit` den Task schließt.
+Schreibt oder **erweitert** die Task-Summary unter `docs/work/<branch-scope>/task-log/`. Das Kern-Skill des gesamten Workflows — sorgt für die Seed-Kette zwischen Tasks. Läuft entweder einmal am Ende (fast path) oder mehrfach über mehrere Sessions, bevor `/commit` den Task schließt.
 
 **Datei:** `.claude/skills/wrap-up/SKILL.md` · [im Repo ansehen](./skills/wrap-up/SKILL.md)
 
@@ -593,10 +671,11 @@ description: Generate or extend a structured task summary
 
 The task is finished (or has been declared blocked).
 Write (or extend) the task summary file at
-`docs/task-log/task-{N}-{slug}.md`.
+`docs/work/<scope>/task-log/task-{N}-{slug}.md`.
 
 - `{N}` = task number from the plan
 - `{slug}` = short kebab-case description (e.g. `login-service`)
+- `<scope>` = derived from the current git branch (see Work scope)
 
 One task gets exactly one log file. No date in the filename —
 the date lives in git history (commit date) and optionally in
@@ -605,6 +684,27 @@ session markers inside the file.
 If the task is NOT finished but the context is filling up,
 use `/handoff` instead — this skill is for completed or
 blocked tasks only.
+
+## Work scope
+
+Resolve the active work root before reading or writing task logs:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before writing task logs.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If
+`docs/work/<scope>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch or migrate the old plan/task logs into this scoped
+work root. Legacy `docs/task-log/` is not an automatic fallback.
 
 ## Task identity — `$ARGUMENTS`
 
@@ -632,7 +732,7 @@ Wrap-up must happen **before** the task's code changes are
 committed. The intended flow is:
 
 1. Finish the code changes (do NOT commit yet).
-2. Run `/wrap-up N` → summary file is written (or extended).
+2. Run `/wrap-up N` → scoped summary file is written (or extended).
 3. Run `/commit N` → commits code + summary together.
 
 If the task's code has already been committed when
@@ -656,7 +756,7 @@ summary lands in the right commit from the start.
 Before writing, check for an existing log:
 
 ```
-ls docs/task-log/task-{N}-*.md 2>/dev/null
+ls docs/work/<scope>/task-log/task-{N}-*.md 2>/dev/null
 ```
 
 - **No file** — fresh write, normal path.
@@ -664,10 +764,9 @@ ls docs/task-log/task-{N}-*.md 2>/dev/null
   session's findings (see merge rules below). Show the user
   the proposed merged file and wait for approval before
   writing.
-- **Multiple files** — the filename convention was violated
-  in the past. Stop and tell the user; ask which file to
-  extend, or let them rename/consolidate manually before
-  continuing.
+- **Multiple files** — the filename convention was violated inside
+  this work scope. Stop and tell the user; ask which file to extend,
+  or let them rename/consolidate manually before continuing.
 
 ## Merge rules (when a log file already exists)
 
@@ -814,7 +913,7 @@ Based on the assessment, propose:
 - How to split the remaining work into smaller tasks
 - Updated task list with revised scope
 
-Then propose an updated plan patch for `docs/plans/`.
+Then propose an updated plan patch for `docs/work/<scope>/plan.md`.
 Do NOT overwrite the old plan — the old version stays
 in git history. Write the revision as an edit.
 
@@ -824,7 +923,7 @@ Do **not** commit. The commit is `/commit N`'s job.
 
 Tell the user:
 
-> Summary is ready at `docs/task-log/task-{N}-{slug}.md`.
+> Summary is ready at `docs/work/<scope>/task-log/task-{N}-{slug}.md`.
 > When you are done with this task's work, close it out with
 > `/commit {N}` — that reads this log, stages code + summary
 > together, and commits with a message derived from the log's
@@ -870,6 +969,27 @@ confirmation. If the user says anything other than a clear
 "yes" / "ok" / "commit", abort without running any git
 command.
 
+## Work scope
+
+Resolve the active work root before locating the task log:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before running git commands.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If
+`docs/work/<scope>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch or migrate the old plan/task logs into this scoped
+work root. Legacy `docs/task-log/` is not an automatic fallback.
+
 ## Task identity — `$ARGUMENTS`
 
 Use `$ARGUMENTS` to identify the task being committed
@@ -889,15 +1009,15 @@ Resolution rules, in order:
 ### 1. Locate the log file
 
 ```
-ls docs/task-log/task-{N}-*.md
+ls docs/work/<scope>/task-log/task-{N}-*.md
 ```
 
 - **Exactly one file** — continue.
 - **No file** — stop. Tell the user:
   > No wrap-up summary found for Task N. Run `/wrap-up N`
   > first.
-- **Multiple files** — stop. Filename convention violated;
-  ask the user to consolidate before committing.
+- **Multiple files** — stop. Filename convention violated inside this
+  work scope; ask the user to consolidate before committing.
 
 ### 2. Read the log file
 
@@ -939,11 +1059,11 @@ Do not auto-resolve any of these — surface them and wait.
 
 **Staging list:**
 
-- The log file: `docs/task-log/task-{N}-{slug}.md`
+- The log file: `docs/work/<scope>/task-log/task-{N}-{slug}.md`
 - Every file in the log's `Files Modified` section that
   exists in the working tree or index.
 - For BLOCKED with Re-Plan: also include
-  `docs/plans/<plan-file>.md` (the updated plan).
+  `docs/work/<scope>/plan.md` (the updated plan).
 
 **Commit message template:**
 
@@ -1254,21 +1374,24 @@ detection.
    - Read modified files in full (not just diffs)
      to understand surrounding context
    - Check if tests were added or updated
-   - Check the relevant `docs/task-log/` entry for Acceptance
-     Coverage and AC IDs when reviewing a task with a wrap-up log
+   - Check the relevant `docs/work/<scope>/task-log/` entry for
+     Acceptance Coverage and AC IDs when reviewing a task with a
+     wrap-up log. Derive `<scope>` from the current git branch the
+     same way as `/start-task`.
 
 3. **Look deeper if something seems off:**
    - `git log -p <file>` for evolution of suspicious files
    - `git blame` to understand who/what introduced patterns
-   - Check `docs/task-log/` for task summaries 
-     that explain intent
+   - Check `docs/work/<scope>/task-log/` for task summaries that
+     explain intent.
 
 4. **Full mode only — check for cross-task patterns:**
    - Are the same files modified across multiple tasks?
    - Is complexity growing in one area?
    - Are there emerging God-classes or God-modules?
-   - If the active plan has a `Cross-Cutting Acceptance` section,
-     read it and check each `XC-NN` against task logs and tests.
+   - Read the active plan at `docs/work/<scope>/plan.md`. If it has a
+     `Cross-Cutting Acceptance` section, check each `XC-NN` against
+     task logs and tests.
 
    Cross-cutting check statuses:
    - `passed` — at least one test or task log asserts the full

@@ -9,6 +9,28 @@ The user wants to begin a new task from the task plan.
 Use $ARGUMENTS to identify the task (e.g. "/start-task 3" 
 means Task 3).
 
+## Work scope
+
+Resolve the active work root before reading plan or task-log files:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before starting task work.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If
+`docs/work/<scope>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch or migrate the old plan/task logs into this scoped
+work root. Legacy paths (`docs/plans/*.md`, root `plan.md`, and
+`docs/task-log/`) are not automatic fallbacks.
+
 ## Your workflow:
 
 1. **Load the plan preamble + only the requested task block.**
@@ -17,9 +39,10 @@ means Task 3).
    distinct pieces of context, and only two apply now: the
    preamble (global rules) and the requested task block. Sibling
    tasks are explicitly out of scope.
-   - Locate the plan file: `docs/plans/*.md` or `plan.md` in the
-     project root. If no task number is given in $ARGUMENTS,
-     ask which task to start.
+   - Locate the plan file at `docs/work/<scope>/plan.md`. If it does
+     not exist, stop and ask the user to run `/plan` or migrate the
+     existing work artifacts into this scope. If no task number is given
+     in $ARGUMENTS, ask which task to start.
    - **Primary path — shell-free extraction via `grep` + `Read`:**
      1) `grep -n '^## Task [0-9]' <plan-file>` to list every task
         heading with its line number.
@@ -50,20 +73,19 @@ means Task 3).
    a violation of task isolation: the isolation rule applies to
    sibling **plan** tasks, not to past **logs**.
    - **Direct predecessor (fast path):** read
-     `docs/task-log/task-{N-1}-*.md`. Use the deterministic
-     numbered path — `ls -t` is unreliable, because a re-run of
-     `/wrap-up M` for an older task can give its file a newer
-     mtime than the real predecessor. Use `ls -t` only as a legacy
-     fallback if the numbered glob returns nothing, and mark that
-     fallback explicitly in the briefing.
+     `docs/work/<scope>/task-log/task-{N-1}-*.md`. Use the
+     deterministic numbered path — `ls -t` is unreliable, because
+     a re-run of `/wrap-up M` for an older task can give its file a
+     newer mtime than the real predecessor.
    - If this is Task 1, skip the predecessor read.
    - **Bounded relevance search across older logs.** Extract
      concrete terms from the requested task block — file paths,
      class/function names, AC IDs, domain terms, referenced
-     interfaces — and search `docs/task-log/` with `rg`. Example:
+     interfaces — and search `docs/work/<scope>/task-log/` with
+     `rg`. Example:
      for a task block mentioning `BuildToolsPolicy` and
      `tools/build-tools.ts`:
-     `rg -n 'BuildToolsPolicy|build-tools\.ts' docs/task-log/`
+     `rg -n 'BuildToolsPolicy|build-tools\.ts' docs/work/<scope>/task-log/`
      Avoid generic terms (`service`, `config`, `handler`) — they
      match everywhere and produce noise.
    - **Hard cap:** read at most 2–3 additional logs beyond the
@@ -135,8 +157,9 @@ means Task 3).
    the closing pair — do **not** execute either step automatically,
    these are user decisions:
    - `/wrap-up N` — writes or extends
-     `docs/task-log/task-{N}-{slug}.md`. Safe to run multiple
-     times across sessions before committing; findings are merged.
+     `docs/work/<scope>/task-log/task-{N}-{slug}.md`. Safe to run
+     multiple times across sessions before committing; findings are
+     merged.
    - `/commit N` — stages code + summary from the log and commits
      them together (after showing the plan and waiting for
      confirmation).

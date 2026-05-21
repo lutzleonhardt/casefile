@@ -9,10 +9,11 @@ description: Generate or extend a structured task summary
 
 The task is finished (or has been declared blocked).
 Write (or extend) the task summary file at
-`docs/task-log/task-{N}-{slug}.md`.
+`docs/work/<scope>/task-log/task-{N}-{slug}.md`.
 
 - `{N}` = task number from the plan
 - `{slug}` = short kebab-case description (e.g. `login-service`)
+- `<scope>` = derived from the current git branch (see Work scope)
 
 One task gets exactly one log file. No date in the filename —
 the date lives in git history (commit date) and optionally in
@@ -21,6 +22,27 @@ session markers inside the file.
 If the task is NOT finished but the context is filling up,
 use `/handoff` instead — this skill is for completed or
 blocked tasks only.
+
+## Work scope
+
+Resolve the active work root before reading or writing task logs:
+
+1. Run `git branch --show-current`.
+2. If the branch name is empty (detached HEAD), stop and ask the user to
+   switch to a branch before writing task logs.
+3. Derive `<scope>` from the branch name:
+   - `main` stays `main`; `master` stays `master`.
+   - Otherwise take the part after the final slash, so
+     `feature/f1234-user-import` becomes `f1234-user-import`.
+   - Normalize to lowercase kebab-case: replace characters outside
+     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
+     and trim leading/trailing punctuation.
+4. Use `docs/work/<scope>/` as the work root.
+
+Do not infer scope from other `docs/work/*` directories. If
+`docs/work/<scope>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch or migrate the old plan/task logs into this scoped
+work root. Legacy `docs/task-log/` is not an automatic fallback.
 
 ## Task identity — `$ARGUMENTS`
 
@@ -48,7 +70,7 @@ Wrap-up must happen **before** the task's code changes are
 committed. The intended flow is:
 
 1. Finish the code changes (do NOT commit yet).
-2. Run `/wrap-up N` → summary file is written (or extended).
+2. Run `/wrap-up N` → scoped summary file is written (or extended).
 3. Run `/commit N` → commits code + summary together.
 
 If the task's code has already been committed when
@@ -72,7 +94,7 @@ summary lands in the right commit from the start.
 Before writing, check for an existing log:
 
 ```
-ls docs/task-log/task-{N}-*.md 2>/dev/null
+ls docs/work/<scope>/task-log/task-{N}-*.md 2>/dev/null
 ```
 
 - **No file** — fresh write, normal path.
@@ -80,10 +102,9 @@ ls docs/task-log/task-{N}-*.md 2>/dev/null
   session's findings (see merge rules below). Show the user
   the proposed merged file and wait for approval before
   writing.
-- **Multiple files** — the filename convention was violated
-  in the past. Stop and tell the user; ask which file to
-  extend, or let them rename/consolidate manually before
-  continuing.
+- **Multiple files** — the filename convention was violated inside
+  this work scope. Stop and tell the user; ask which file to extend,
+  or let them rename/consolidate manually before continuing.
 
 ## Merge rules (when a log file already exists)
 
@@ -230,7 +251,7 @@ Based on the assessment, propose:
 - How to split the remaining work into smaller tasks
 - Updated task list with revised scope
 
-Then propose an updated plan patch for `docs/plans/`.
+Then propose an updated plan patch for `docs/work/<scope>/plan.md`.
 Do NOT overwrite the old plan — the old version stays
 in git history. Write the revision as an edit.
 
@@ -240,7 +261,7 @@ Do **not** commit. The commit is `/commit N`'s job.
 
 Tell the user:
 
-> Summary is ready at `docs/task-log/task-{N}-{slug}.md`.
+> Summary is ready at `docs/work/<scope>/task-log/task-{N}-{slug}.md`.
 > When you are done with this task's work, close it out with
 > `/commit {N}` — that reads this log, stages code + summary
 > together, and commits with a message derived from the log's
