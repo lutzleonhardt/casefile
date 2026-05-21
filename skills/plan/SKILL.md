@@ -177,6 +177,8 @@ can extract exactly one task block without loading siblings:
   title, spec reference, scope note, and the Flexibility Clause.
   Keep it compact (≤ 30 lines). This is the only cross-cutting
   context `/start-task` will load alongside the requested task.
+  Include an explicit source line near the top, for example
+  `Spec: docs/specs/auth-rewrite.md` or `Spec: <issue/chat source>`.
 - **Task heading** — `## Task N` or `## Task N: <title>` on its
   own line. Numbering is sequential inside `docs/work/<scope>/`.
   A different branch scope may also have `Task 1`; that is correct.

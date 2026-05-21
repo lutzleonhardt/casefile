@@ -48,7 +48,7 @@ project-root/
 
 **Datenfluss zwischen den Skills:**
 
-`docs/specs/X.md` → `/plan` → `docs/work/<branch-scope>/plan.md` → `/start-task N` → Implementierung → `/wrap-up N` → `docs/work/<branch-scope>/task-log/task-N-{slug}.md` → `/commit N` → atomarer Commit (Code + Summary).
+`docs/specs/X.md` → `/plan` → `docs/work/<branch-scope>/plan.md` → `/start-task N` → Implementierung → `/wrap-up N` → `docs/work/<branch-scope>/task-log/task-N-{slug}.md` → `/commit N` → atomarer Commit (Code + Summary). Der Plan nennt im Preamble explizit seine Quelle, z. B. `Spec: docs/specs/X.md`.
 
 `<branch-scope>` wird automatisch aus dem aktuellen Git-Branch abgeleitet: `main` bleibt `main`, `master` bleibt `master`, `feature/f1234-user-import` wird zu `f1234-user-import`. Dadurch bleibt der tägliche Flow kurz (`/start-task 2`), aber parallele Worktrees schreiben nicht mehr in denselben globalen Task-Log.
 
@@ -371,6 +371,8 @@ can extract exactly one task block without loading siblings:
   title, spec reference, scope note, and the Flexibility Clause.
   Keep it compact (≤ 30 lines). This is the only cross-cutting
   context `/start-task` will load alongside the requested task.
+  Include an explicit source line near the top, for example
+  `Spec: docs/specs/auth-rewrite.md` or `Spec: <issue/chat source>`.
 - **Task heading** — `## Task N` or `## Task N: <title>` on its
   own line. Numbering is sequential inside `docs/work/<scope>/`.
   A different branch scope may also have `Task 1`; that is correct.
