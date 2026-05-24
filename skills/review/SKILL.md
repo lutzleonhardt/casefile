@@ -77,9 +77,12 @@ detection.
      to understand surrounding context
    - Check if tests were added or updated
    - Check the relevant `docs/work/<scope>/task-log/` entry for
-     Acceptance Coverage and AC IDs when reviewing a task with a
-     wrap-up log. Derive `<scope>` from the current git branch the
-     same way as `/start-task`.
+     Acceptance Coverage, Review Focus, and AC IDs when reviewing a
+     task with a wrap-up log. Derive `<scope>` from the current git
+     branch the same way as `/start-task`.
+   - Treat `Review Focus` as claims to verify against the code and
+     diff, not as truth. False or incomplete claims become Hotspots.
+     Missing, generic, or non-actionable entries become Blind Spots.
 
 3. **Look deeper if something seems off:**
    - `git log -p <file>` for evolution of suspicious files
@@ -122,6 +125,8 @@ inspected or modified. Be specific:
 - Config files that might need changes
 - Adjacent modules that depend on changed code
 - Error handling paths not covered
+- Missing, generic, or non-actionable `Review Focus` entries in the
+  task log
 
 For each blind spot, explain WHY it might matter.
 

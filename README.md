@@ -795,6 +795,8 @@ output as follows:
   partial/skipped in the prior session and is now passed, replace
   it. If it was passed and now regresses, surface that explicitly
   instead of silently downgrading it.
+- **Review Focus**: replace with the current view. This section is
+  a live map for the next human review, not a historical record.
 - **Open Issues**: merge; drop issues that are now resolved
   (note them in the session marker if helpful).
 - **Context for Next Task**: replace with the current view —
@@ -841,6 +843,22 @@ context was used.
 Technical decisions made during this session and
 the reasoning behind them. Include alternatives
 that were considered and rejected.
+
+### Review Focus
+Compact map for human review. Do not repeat the diff.
+Each bullet must be filled with concrete content or the
+literal word `None`.
+
+- **Behavior claims:** 1-3 observable claims this implementation now
+  satisfies. Empty or generic claims are review blind spots.
+- **Assumptions / choices:** concrete spec gaps or design decisions made
+  during implementation. Use `None` only if the spec was unambiguous.
+- **Scope notes:** intentional behavior or file changes outside the
+  obvious task surface, or `None`. Silent omission is review-relevant
+  scope drift.
+- **Read next:** 1-3 exact files/symbols the reviewer should inspect
+  first, with one line why. Listing only changed files is not a
+  meaningful entry.
 
 ### Test Evidence
 What was tested and how. Include:
@@ -1377,9 +1395,12 @@ detection.
      to understand surrounding context
    - Check if tests were added or updated
    - Check the relevant `docs/work/<scope>/task-log/` entry for
-     Acceptance Coverage and AC IDs when reviewing a task with a
-     wrap-up log. Derive `<scope>` from the current git branch the
-     same way as `/start-task`.
+     Acceptance Coverage, Review Focus, and AC IDs when reviewing a
+     task with a wrap-up log. Derive `<scope>` from the current git
+     branch the same way as `/start-task`.
+   - Treat `Review Focus` as claims to verify against the code and
+     diff, not as truth. False or incomplete claims become Hotspots.
+     Missing, generic, or non-actionable entries become Blind Spots.
 
 3. **Look deeper if something seems off:**
    - `git log -p <file>` for evolution of suspicious files
@@ -1422,6 +1443,8 @@ inspected or modified. Be specific:
 - Config files that might need changes
 - Adjacent modules that depend on changed code
 - Error handling paths not covered
+- Missing, generic, or non-actionable `Review Focus` entries in the
+  task log
 
 For each blind spot, explain WHY it might matter.
 
