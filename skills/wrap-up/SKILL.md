@@ -239,6 +239,12 @@ literal word `None`.
 
 - **Behavior claims:** 1-3 observable claims this implementation now
   satisfies. Empty or generic claims are review blind spots.
+- **Plan deviations:** everything done differently from the approved
+  task block — instructions not followed as written, acceptance
+  criteria reinterpreted, key locations that turned out wrong or
+  incomplete. One line each: what the plan said → what was done →
+  why. Use `None` only if the block was followed as written; in the
+  fix lane (no plan) write `No plan (fix lane)`.
 - **Assumptions / choices:** concrete spec gaps or design decisions made
   during implementation. Use `None` only if the spec was unambiguous.
 - **Scope notes:** intentional behavior or file changes outside the

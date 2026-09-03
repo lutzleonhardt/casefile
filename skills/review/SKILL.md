@@ -120,6 +120,14 @@ detection.
    - Treat `Review Focus` as claims to verify against the code and
      diff, not as truth. False or incomplete claims become Hotspots.
      Missing, generic, or non-actionable entries become Blind Spots.
+   - Cross-check `Plan deviations` in both directions. Extract just
+     the task's `## Task N` block from `docs/work/<scope>/plan.md`
+     (not the sibling tasks) and (a) verify each declared deviation
+     against it, (b) scan the diff for departures from the block —
+     touched files outside Key Locations, reinterpreted or silently
+     dropped ACs — that are NOT declared. An undeclared deviation is
+     a Hotspot and ranks above a declared one; a missing or generic
+     `Plan deviations` entry is a Blind Spot.
    - Fix-lane logs (`fix-*.md`, `chore-*.md`, … — see `/wrap-up`'s
      fix lane) carry no Acceptance Coverage or AC IDs by design;
      their absence is not a Blind Spot there. Verify the
