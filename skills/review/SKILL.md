@@ -29,6 +29,25 @@ moment before the PR leaves the author. Coverage mode is for large
 diffs where the reviewer wants confidence that no changed file or
 moved responsibility slipped through.
 
+## Work scope
+
+Resolve the active roots before touching any plan, log, or doc path:
+
+```
+vault root -v
+```
+
+Trust its output verbatim: `work root` is where `plan.md` and
+`task-log/` live — every `docs/work/<scope>/` path in this skill
+refers to it. `doc root` is where project-global docs (specs,
+architecture, improvements) live — every other `docs/` path in this
+skill resolves against it. `scope` and `mode` come from the same
+output; do not re-derive any of them, and let the CLI's own errors
+(detached HEAD, missing vault repo) stop the run. If `vault` is not
+on PATH, stop: the kit ships with its CLI — reinstall it instead of
+deriving paths by hand. In vault mode, work artifacts never enter
+the current repository.
+
 ## Review scope — commit range vs. working tree
 
 Before running the workflow, decide **what** is being reviewed.
@@ -94,12 +113,8 @@ detection.
    - Check if tests were added or updated
    - Check the relevant `docs/work/<scope>/task-log/` entry for
      Acceptance Coverage, Review Focus, and AC IDs when reviewing a
-     task with a wrap-up log. Resolve the work root with
-     `vault root -v` (works in home and vault mode): every
-     `docs/work/<scope>/` path in this skill refers to the reported
-     `work root`, and project-global docs live under the reported
-     `doc root`. In vault mode both lie in the private vault repo,
-     and AC IDs (`T{N}-AC-{NN}`, `XC-NN`) or task numbers inside the
+     task with a wrap-up log. In vault mode, AC IDs
+     (`T{N}-AC-{NN}`, `XC-NN`) or task numbers inside the
      diff — comments, test names, fixtures — are a Hotspot: the plan
      is invisible from the code repo. In home mode they are fine.
    - Treat `Review Focus` as claims to verify against the code and

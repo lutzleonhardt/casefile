@@ -19,9 +19,7 @@ command.
 
 ## Work scope
 
-Resolve the active work root before locating the task log.
-
-**Primary path — `vault` CLI** (works in home and vault mode):
+Resolve the active roots before touching any plan, log, or doc path:
 
 ```
 vault root -v
@@ -29,31 +27,31 @@ vault root -v
 
 Trust its output verbatim: `work root` is where `plan.md` and
 `task-log/` live — every `docs/work/<scope>/` path in this skill
-refers to it. `doc root` is where project-global docs live — every
-other `docs/` path resolves against it. `scope` and `mode` come
-from the same output; do not re-derive them.
+refers to it. `doc root` is where project-global docs (specs,
+architecture, improvements) live — every other `docs/` path in this
+skill resolves against it. `scope` and `mode` come from the same
+output; do not re-derive any of them, and let the CLI's own errors
+(detached HEAD, missing vault repo) stop the run. If `vault` is not
+on PATH, stop: the kit ships with its CLI — reinstall it instead of
+deriving paths by hand. In vault mode, work artifacts never enter
+the current repository.
 
-**Fallback (CLI not on PATH):** home mode only — work root is
-`docs/work/<scope>/`, doc root is `docs/`, where `<scope>` is the
-branch name's last `/`-segment in lowercase kebab-case
-(`main`/`master` stay as-is; detached HEAD: stop and ask the user
-to switch to a branch). If `git config --get vault.project` is
-non-empty, stop: vault mode requires the `vault` CLI.
-
-Do not infer scope from other work-root directories. If
-`<work-root>/plan.md` is missing, stop and tell the user to run
-`/plan` on this branch or migrate the old plan/task logs into this scoped
-work root. Legacy `docs/task-log/` is not an automatic fallback.
+If `<work-root>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch first. Legacy layouts (`docs/plans/`, a
+root `plan.md`, `docs/task-log/`) are never automatic fallbacks —
+migrate them into the scoped work root first.
 
 ## Vault mode differences
 
-In vault mode the work artifacts must never enter the current
+In vault mode the work artifacts never enter the current
 repository. This changes the commit mechanics:
 
-- **CLI fast path:** if the `vault` CLI is on PATH
-  (`command -v vault`), the note, vault-commit, and backup steps
-  below collapse into one command — show it in the commit plan
-  instead of the raw steps and run it after the code commit:
+- **Staging list:** `[code]` files only. The `[log]` file (and
+  `[plan]` for BLOCKED+replan) live in the **vault repo** instead,
+  not staged here.
+- **Link:** after the code commit, one command attaches the git
+  note (`tasklog:` pointer), commits the vault repo, and pushes the
+  notes backup into the vault:
   ```
   vault link {N} {slug} [{sha}] -m "task-N: <title> ({project})"
   ```
@@ -61,42 +59,14 @@ repository. This changes the commit mechanics:
   `### Sessions` section into the vault (safety net against
   transcript expiry and machine loss). Pass `--no-session` only
   when the user explicitly wants the raw transcripts excluded.
-  The manual steps below remain the spec and the fallback.
-
-- **Staging list:** `[code]` files only. The `[log]` file (and
-  `[plan]` for BLOCKED+replan) are committed to the **vault repo**
-  instead, not staged here.
-- **Link:** after the code commit, attach a git note to it:
-  ```
-  git notes add -m "tasklog: <project>/work/<scope>/task-log/task-{N}-{slug}.md" <hash>
-  ```
-  Ensure once per repo: `git config notes.rewriteRef refs/notes/commits`
-  (keeps notes attached across rebase/amend).
-- **Vault commit:** commit the log (plus plan and any edits to
-  project-global docs under the doc root) in the vault repo:
-  ```
-  git -C <vault-root> add <project>
-  git -C <vault-root> commit -m "task-N: <title> (<project>)"
-  ```
-- **Notes backup:** push the notes ref into the vault repo so a
-  re-clone of the project cannot lose the links. `<project-slug>`
-  is `vault.project` with `/` replaced by `-`:
-  ```
-  git push --force <vault-root> refs/notes/commits:refs/notes/<project-slug>
-  ```
-  `--force` is correct here: the backup mirrors the current notes
-  state, and rewrites (amend/rebase note-copies, note removals) make
-  the ref legitimately non-fast-forward. The target is the private
-  vault, never a shared remote.
 - **Code already committed** (e.g. wrap-up ran after the commit):
   skip `git add`/`git commit`, ask the user to confirm the target
-  commit hash, then run only the note, vault-commit, and backup
-  steps against that hash.
+  commit hash, then run `vault link {N} {slug} <hash>` against it.
 - **Never** push notes refs or anything else to the repository's
-  origin. The backup push targets the vault path only.
+  origin. `vault link`'s backup push targets the private vault only.
 
-All these commands appear in the commit plan (step 5) and run only
-after the user confirms.
+The `vault link` command appears in the commit plan (step 5) and
+runs only after the user confirms.
 
 ## Home mode: session archive
 
@@ -104,39 +74,25 @@ In home mode the log and code are committed to the repository
 itself — but the session transcripts under `~/.claude/projects/`
 (and `~/.codex/sessions/`) are ephemeral: nothing preserves them.
 `/commit` therefore archives them into the vault repo, which acts
-as the personal session archive even for home-mode projects.
+as the personal session archive even for home-mode projects. After
+the code commit, run:
 
-- **CLI fast path:** if the `vault` CLI is on PATH, the whole
-  step is one command — show it in the commit plan and run it
-  after the code commit:
-  ```
-  vault archive {N}
-  ```
-  It copies the transcripts listed in the log's `### Sessions`
-  section **plus the current session** (a resume's ID may not be
-  in the log yet — the commit phase always runs after the last
-  wrap-up) into `<vault>/<project>/work/<scope>/sessions/task-{N}/`
-  and commits the vault repo. Project identity is derived from the
-  origin remote (fallback: `home/<directory-name>`). If it fails
-  with "no vault repo", report that one line and continue — the
-  archive is a safety net, never a commit blocker. Missing source
-  files (expired transcripts) are reported per line, not fatal.
-- **Fallback (CLI not on PATH) — the manual spec:** vault root is
-  `git config --get vault.root`, else `$HOME/vault` (skip with a
-  one-line note if `<vault>/.git` does not exist; never create it
-  implicitly). Project identity: the origin remote's last two path
-  segments with a trailing `.git` stripped. Copy every
-  `transcript: <path>` from the log's `### Sessions` section plus
-  `~/.claude/projects/*/$CLAUDE_CODE_SESSION_ID.jsonl` into the
-  destination above, then `git -C <vault> add <project>` and
-  commit (`sessions: task-{N} (<project>)`). No git note and no
-  notes backup push — those are vault-mode mechanics; in home mode
-  the log travels inside the code commit.
-- Skip the whole step only when the user explicitly asks for the
-  transcripts to be excluded.
+```
+vault archive {N}
+```
 
-These commands appear in the commit plan (step 5, `[sessions]`
-group) and run only after the user confirms, once the code commit
+It copies the transcripts listed in the log's `### Sessions`
+section **plus the current session** (a resume's ID may not be
+in the log yet — the commit phase always runs after the last
+wrap-up) into `<vault>/<project>/work/<scope>/sessions/task-{N}/`
+and commits the vault repo. If it fails with "no vault repo",
+report that one line and continue — the archive is a safety net,
+never a commit blocker. Missing source files (expired transcripts)
+are reported per line, not fatal. Skip the step only when the user
+explicitly asks for the transcripts to be excluded.
+
+The command appears in the commit plan (step 5, `[sessions]`
+group) and runs only after the user confirms, once the code commit
 has succeeded.
 
 ## Task identity — `$ARGUMENTS`
@@ -285,11 +241,9 @@ Present a single block to the user containing:
   - `[log]` — the task summary file (home mode only)
   - `[code]` — source files from Files Modified
   - `[plan]` — plan file (BLOCKED+replan only, home mode only)
-  - `[note]` — vault mode: the exact `git notes add` command
-  - `[vault]` — vault mode: vault-repo commit + notes backup push
-  - `[sessions]` — home mode: transcript copies into the vault +
-    vault-repo commit (see Home mode: session archive), or the
-    one-line skip note when no vault repo exists
+  - `[vault]` — vault mode: the exact `vault link …` command
+  - `[sessions]` — home mode: the exact `vault archive …` command
+    (see Home mode: session archive)
 - Any discrepancies from step 3 (missing / extra / already-staged
   files) with a short note each.
 - The exact commands that will run:
@@ -308,11 +262,11 @@ End with a confirmation prompt, e.g.:
 - **`yes` / `ok` / `commit`** — run `git add <files>` then
   `git commit -m "<message>"` (plus `-m "<body>"` if the shown
   plan included a body). Show the resulting commit hash and a
-  one-line confirmation. In vault mode, then run the `[note]`
-  and `[vault]` commands from the plan against the new hash and
-  confirm each with one line. In home mode, then run the
-  `[sessions]` commands from the plan and confirm the copy count
-  and vault commit with one line.
+  one-line confirmation. In vault mode, then run the `[vault]`
+  command from the plan against the new hash and confirm with
+  one line. In home mode, then run the `[sessions]` command from
+  the plan and confirm the copy count and vault commit with one
+  line.
 - **`edit message`** — accept a revised message from the
   user and re-show the plan for confirmation. Do not
   commit until re-confirmed.
@@ -336,7 +290,7 @@ Do **not** push. Pushing is an explicit human action.
 - It does not run tests. Test evidence lives in the wrap-up.
 - It does not amend or rewrite history. If the user needs
   to amend a prior commit, they do that by hand.
-- It does not push to a remote. (Sole exception: the vault-mode
+- It does not push to a remote. (Sole exception: `vault link`'s
   notes backup push, which targets the local vault path and never
   the repository's origin.)
 - It does not sweep files with `git add -A` or `git add .`.

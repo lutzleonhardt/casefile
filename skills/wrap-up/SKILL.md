@@ -19,15 +19,12 @@ One task gets exactly one log file. No date in the filename —
 the date lives in git history (commit date) and optionally in
 session markers inside the file.
 
-If the task is NOT finished but the context is filling up,
-use `/handoff` instead — this skill is for completed or
-blocked tasks only.
+If the task is NOT finished, do not run this skill — it is
+for completed or blocked tasks only.
 
 ## Work scope
 
-Resolve the active work root before reading or writing task logs.
-
-**Primary path — `vault` CLI** (works in home and vault mode):
+Resolve the active roots before touching any plan, log, or doc path:
 
 ```
 vault root -v
@@ -35,22 +32,19 @@ vault root -v
 
 Trust its output verbatim: `work root` is where `plan.md` and
 `task-log/` live — every `docs/work/<scope>/` path in this skill
-refers to it. `doc root` is where project-global docs live — every
-other `docs/` path resolves against it. `scope` and `mode` come
-from the same output; do not re-derive them. In vault mode, never
-create, stage, or commit work files inside the current repository.
+refers to it. `doc root` is where project-global docs (specs,
+architecture, improvements) live — every other `docs/` path in this
+skill resolves against it. `scope` and `mode` come from the same
+output; do not re-derive any of them, and let the CLI's own errors
+(detached HEAD, missing vault repo) stop the run. If `vault` is not
+on PATH, stop: the kit ships with its CLI — reinstall it instead of
+deriving paths by hand. In vault mode, work artifacts never enter
+the current repository.
 
-**Fallback (CLI not on PATH):** home mode only — work root is
-`docs/work/<scope>/`, doc root is `docs/`, where `<scope>` is the
-branch name's last `/`-segment in lowercase kebab-case
-(`main`/`master` stay as-is; detached HEAD: stop and ask the user
-to switch to a branch). If `git config --get vault.project` is
-non-empty, stop: vault mode requires the `vault` CLI.
-
-Do not infer scope from other work-root directories. If
-`<work-root>/plan.md` is missing, stop and tell the user to run
-`/plan` on this branch or migrate the old plan/task logs into this scoped
-work root. Legacy `docs/task-log/` is not an automatic fallback.
+If `<work-root>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch first. Legacy layouts (`docs/plans/`, a
+root `plan.md`, `docs/task-log/`) are never automatic fallbacks —
+migrate them into the scoped work root first.
 **Exception:** the fix lane (below) needs no plan — a missing
 `plan.md` never stops `/wrap-up fix`.
 
@@ -221,7 +215,7 @@ One-sentence summary of what was worked on.
 ### Status
 DONE | BLOCKED
 If BLOCKED, explain why and what needs to happen
-to unblock. (For in-progress tasks, use `/handoff`.)
+to unblock.
 
 ### Files Modified
 Each file with a one-line description of what
@@ -319,11 +313,7 @@ vault session --agent all  # additionally the newest Codex session
                            # in this repo (cwd-matched heuristic)
 ```
 
-Paste its output lines verbatim. Manual fallback without the CLI:
-Claude Code transcript is
-`~/.claude/projects/*/$CLAUDE_CODE_SESSION_ID.jsonl`; Codex is the
-newest `rollout-*.jsonl` under `~/.codex/sessions/` whose header
-contains this repo's `"cwd"`.
+Paste its output lines verbatim.
 
 Record only the sessions you can determine; earlier sessions keep
 their lines from prior merges.

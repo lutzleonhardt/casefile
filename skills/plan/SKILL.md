@@ -23,9 +23,7 @@ Create or switch to the feature branch before running `/plan`. The
 branch is the unit of work: one branch has one active work plan at
 `docs/work/<scope>/plan.md`.
 
-Before locating or writing plan artifacts, determine the active work root.
-
-**Primary path — `vault` CLI** (works in home and vault mode):
+Resolve the active roots before touching any plan, log, or doc path:
 
 ```
 vault root -v
@@ -36,22 +34,16 @@ Trust its output verbatim: `work root` is where `plan.md` and
 refers to it. `doc root` is where project-global docs (specs,
 architecture, improvements) live — every other `docs/` path in this
 skill resolves against it. `scope` and `mode` come from the same
-output; do not re-derive them. In vault mode the work root lies in
-a private vault git repository; work artifacts must never enter the
-current repository.
+output; do not re-derive any of them, and let the CLI's own errors
+(detached HEAD, missing vault repo) stop the run. If `vault` is not
+on PATH, stop: the kit ships with its CLI — reinstall it instead of
+deriving paths by hand. In vault mode, work artifacts never enter
+the current repository.
 
-**Fallback (CLI not on PATH):** home mode only — work root is
-`docs/work/<scope>/`, doc root is `docs/`, where `<scope>` is the
-branch name's last `/`-segment in lowercase kebab-case
-(`main`/`master` stay as-is; detached HEAD: stop and ask the user
-to switch to a branch). If `git config --get vault.project` is
-non-empty, stop: vault mode requires the `vault` CLI.
-
-Do not infer scope from other work-root directories. If a branch is
-renamed, rename the matching `<work-root>` directory in the
-same commit or keep using the old branch name. Legacy artifacts in
-`docs/plans/` and `docs/task-log/` must be migrated before using the
-scoped workflow.
+If a branch is renamed, rename the matching `<work-root>` directory
+or keep using the old branch name. Legacy layouts (`docs/plans/`, a
+root `plan.md`, `docs/task-log/`) are never automatic fallbacks —
+migrate them into the scoped work root first.
 
 ## Workflow
 
@@ -80,7 +72,7 @@ scoped workflow.
    at `N + 1`.
 
    Why branch-scoped: the whole skill chain (`/start-task`,
-   `/wrap-up`, `/commit`, `/handoff`) can keep the fast daily shape
+   `/wrap-up`, `/commit`) can keep the fast daily shape
    (`/start-task N`) while avoiding collisions between parallel
    worktrees. `task-N-{slug}.md` only has to be unique inside
    `docs/work/<scope>/task-log/`.
@@ -262,7 +254,8 @@ Good examples:
 > times across sessions — it merges. `/commit N` reads that log,
 > stages code + summary, and commits them together after showing
 > the plan and waiting for confirmation. Optionally run `/review`
-> (quick per-task, full before a PR) between wrap-up and commit;
+> (quick per-task, full before a PR, coverage for large diffs)
+> between wrap-up and commit;
 > a second `/wrap-up N` can absorb the review findings.
 
 This keeps the plan a guide, not a straitjacket — and gives every

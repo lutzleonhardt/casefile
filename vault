@@ -6,6 +6,8 @@ git notes. stdlib only, single file, works on Linux/macOS/Windows.
 
 Companion of the /plan, /start-task, /wrap-up, /commit, /review skills:
 the skills carry the judgment, this tool carries the plumbing.
+`vault skills` installs or updates those skills; the kit's install.sh
+bootstraps both and is safe to re-run as the updater.
 """
 
 import argparse
@@ -16,6 +18,8 @@ import sys
 from pathlib import Path
 
 NOTES_REF = "refs/notes/commits"
+KIT_REPO = "lutzleonhardt/skill-kit-agentic-workflow"
+SKILL_NAMES = ["plan", "start-task", "wrap-up", "review", "commit"]
 
 
 def die(msg, code=1):
@@ -447,6 +451,55 @@ def cmd_session(ctx, args):
     print("\n".join(lines))
 
 
+def skill_source(name, args):
+    """Return a skill's SKILL.md content — from a local kit checkout
+    (--from) or the GitHub raw endpoint at --ref."""
+    if args.src:
+        p = Path(args.src).expanduser() / "skills" / name / "SKILL.md"
+        if not p.exists():
+            die(f"no such skill in {args.src}: {p}")
+        return p.read_text(encoding="utf-8")
+    import urllib.request
+    url = (f"https://raw.githubusercontent.com/{KIT_REPO}/"
+           f"{args.ref}/skills/{name}/SKILL.md")
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            return r.read().decode("utf-8")
+    except OSError as e:
+        die(f"fetch failed: {url}\n{e}")
+
+
+def cmd_skills(ctx, args):
+    """Install/update the kit's skills for the agents on this machine.
+    Idempotent: install and update are the same fetch-compare-write."""
+    home = Path.home()
+    agents = []
+    if args.agent in ("claude", "all") or (
+            args.agent == "auto" and (home / ".claude").exists()):
+        agents.append(("claude", lambda n:
+                       home / ".claude" / "skills" / n / "SKILL.md"))
+    if args.agent in ("codex", "all") or (
+            args.agent == "auto" and (home / ".codex").exists()):
+        agents.append(("codex", lambda n:
+                       home / ".codex" / "prompts" / f"{n}.md"))
+    if not agents:
+        die("no agent targets found (~/.claude and ~/.codex missing; "
+            "use --agent to force one)")
+    for name in SKILL_NAMES:
+        content = skill_source(name, args)
+        for agent, dest_for in agents:
+            dest = dest_for(name)
+            old = (dest.read_text(encoding="utf-8")
+                   if dest.exists() else None)
+            if old == content:
+                print(f"unchanged  {agent}:{name}")
+                continue
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8")
+            status = "updated" if old is not None else "installed"
+            print(f"{status:<10} {agent}:{name} -> {dest}")
+
+
 def cmd_doctor(ctx, args):
     ok = True
 
@@ -579,6 +632,24 @@ def main():
                         "only as fallback; codex/all force the codex "
                         "cwd-match")
     s.set_defaults(fn=cmd_session, needs_ctx=False)
+
+    s = sub.add_parser("skills",
+                       help="install or update the kit's skill files "
+                            "for claude-code and codex")
+    s.add_argument("action", nargs="?", default="install",
+                   choices=["install", "update"],
+                   help="synonyms — the operation is idempotent")
+    s.add_argument("--agent",
+                   choices=["auto", "claude", "codex", "all"],
+                   default="auto",
+                   help="auto (default): every agent whose config "
+                        "dir exists")
+    s.add_argument("--ref", default="main",
+                   help="git ref to fetch from GitHub (default: main)")
+    s.add_argument("--from", dest="src", metavar="DIR",
+                   help="install from a local kit checkout instead "
+                        "of GitHub")
+    s.set_defaults(fn=cmd_skills, needs_ctx=False)
 
     s = sub.add_parser("doctor", help="check config, notes and backup state")
     s.set_defaults(fn=cmd_doctor)

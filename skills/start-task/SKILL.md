@@ -11,9 +11,7 @@ means Task 3).
 
 ## Work scope
 
-Resolve the active work root before reading plan or task-log files.
-
-**Primary path — `vault` CLI** (works in home and vault mode):
+Resolve the active roots before touching any plan, log, or doc path:
 
 ```
 vault root -v
@@ -24,20 +22,16 @@ Trust its output verbatim: `work root` is where `plan.md` and
 refers to it. `doc root` is where project-global docs (specs,
 architecture, improvements) live — every other `docs/` path in this
 skill resolves against it. `scope` and `mode` come from the same
-output; do not re-derive them.
+output; do not re-derive any of them, and let the CLI's own errors
+(detached HEAD, missing vault repo) stop the run. If `vault` is not
+on PATH, stop: the kit ships with its CLI — reinstall it instead of
+deriving paths by hand. In vault mode, work artifacts never enter
+the current repository.
 
-**Fallback (CLI not on PATH):** home mode only — work root is
-`docs/work/<scope>/`, doc root is `docs/`, where `<scope>` is the
-branch name's last `/`-segment in lowercase kebab-case
-(`main`/`master` stay as-is; detached HEAD: stop and ask the user
-to switch to a branch). If `git config --get vault.project` is
-non-empty, stop: vault mode requires the `vault` CLI.
-
-Do not infer scope from other work-root directories. If
-`<work-root>/plan.md` is missing, stop and tell the user to run
-`/plan` on this branch or migrate the old plan/task logs into this scoped
-work root. Legacy paths (`docs/plans/*.md`, root `plan.md`, and
-`docs/task-log/`) are not automatic fallbacks.
+If `<work-root>/plan.md` is missing, stop and tell the user to run
+`/plan` on this branch first. Legacy layouts (`docs/plans/`, a
+root `plan.md`, `docs/task-log/`) are never automatic fallbacks —
+migrate them into the scoped work root first.
 
 ### Vault mode
 
@@ -53,9 +47,8 @@ via git notes instead of committed files.
 - **Vault layout:** the vault is its own git repo. `<doc-root>/`
   holds project-global docs; `<doc-root>/work/<scope>/` holds
   `plan.md`, `task-log/` and `sessions/`.
-- **Hard rule:** in vault mode, never create, stage, or commit work
-  files inside the current repository, and never push notes refs to
-  the repository's origin.
+- **Origin stays clean:** never push notes refs to the repository's
+  origin — `vault link`'s backup push targets the private vault only.
 - **No AC IDs in the code:** in vault mode, AC IDs (`T{N}-AC-{NN}`,
   `XC-NN`) and task numbers never appear in source comments, test
   names, fixtures, or any other file of the current repository —
@@ -78,9 +71,8 @@ via git notes instead of committed files.
    preamble (global rules) and the requested task block. Sibling
    tasks are explicitly out of scope.
    - Locate the plan file at `docs/work/<scope>/plan.md`. If it does
-     not exist, stop and ask the user to run `/plan` or migrate the
-     existing work artifacts into this scope. If no task number is given
-     in $ARGUMENTS, ask which task to start.
+     not exist, stop per the Work scope rule. If no task number is
+     given in $ARGUMENTS, ask which task to start.
    - **Primary path — shell-free extraction via `grep` + `Read`:**
      1) `grep -n '^## Task [0-9]' <plan-file>` to list every task
         heading with its line number.
@@ -218,8 +210,8 @@ via git notes instead of committed files.
      confirmation).
    - Optionally `/review` between the two — default is quick mode
      (per-task hotspots + blind spots); use `/review full` before
-     a PR. A second `/wrap-up N` can absorb the review findings
-     before `/commit N` runs.
+     a PR, `/review coverage` for large diffs. A second `/wrap-up N`
+     can absorb the review findings before `/commit N` runs.
 
    If the user explicitly declared the task BLOCKED instead of
    DONE, still point at `/wrap-up N` — it handles the BLOCKED case
