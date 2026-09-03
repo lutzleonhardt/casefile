@@ -183,6 +183,14 @@ via git notes instead of committed files.
    
    Do not write code yet.
 
+   On point (3): if the file-level plan exceeds ~10 files, or the
+   task block's Key Locations turned out wrong or incomplete (the
+   real code lives elsewhere, or one location fans out into a
+   whole subsystem), stop and propose a split or a plan amendment
+   before writing code — do not absorb the extra scope silently.
+   An accepted deviation must later appear in `/wrap-up`'s
+   `Plan deviations`.
+
    On point (4): what concrete output proves this task worked,
    and what can the next task treat as "validated"? If there is
    no clear answer, stop and flag back to the user — the task

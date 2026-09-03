@@ -77,10 +77,25 @@ migrate them into the scoped work root first.
    worktrees. `task-N-{slug}.md` only has to be unique inside
    `docs/work/<scope>/task-log/`.
 
-4. **Propose a task breakdown** following the rules below.
-   Present it to the user **before** writing any file.
+4. **Draft a task breakdown** following the rules below.
 
-5. **Wait for user approval.** Only then write to
+5. **Resolve every Key Location against the code** before showing
+   the plan. Key Locations are hypotheses until checked — unresolved
+   guesses are the main source of oversized tasks. For each task:
+   - Verify each named file exists (glob) and each named
+     class/function/symbol is found where claimed (bounded `rg`).
+     Do not read implementations — this is existence checking,
+     not code study.
+   - A location that does not resolve is a planning bug: find the
+     real one or rewrite the task.
+   - If resolving reveals that the task actually touches more than
+     ~10 files, or one location fans out into a whole subsystem,
+     re-slice the task before presenting.
+   The presented plan contains only resolved locations.
+
+6. **Present the breakdown to the user** — before writing any file.
+
+7. **Wait for user approval.** Only then write to
    `docs/work/<scope>/plan.md`. If a scoped plan file already exists,
    propose an edit rather than overwriting — the user decides.
 
@@ -175,7 +190,8 @@ For each task, produce:
     plan-end cross-cutting section by default.
   Optional only for pure mechanical refactors.
 - **Key Locations** — files, fully qualified classes/methods
-  likely to be touched.
+  to be touched. Resolved against the code (workflow step 5),
+  never unchecked guesses.
 - **Key Discoveries** — facts from the spec or outside the key
   locations that the executing agent needs at start (domain rules,
   invariants, acceptance nuances). Required whenever the spec
