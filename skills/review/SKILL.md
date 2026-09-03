@@ -94,11 +94,25 @@ detection.
    - Check if tests were added or updated
    - Check the relevant `docs/work/<scope>/task-log/` entry for
      Acceptance Coverage, Review Focus, and AC IDs when reviewing a
-     task with a wrap-up log. Derive `<scope>` from the current git
-     branch the same way as `/start-task`.
+     task with a wrap-up log. Resolve the work root with
+     `vault root -v` (works in home and vault mode): every
+     `docs/work/<scope>/` path in this skill refers to the reported
+     `work root`, and project-global docs live under the reported
+     `doc root`. In vault mode both lie in the private vault repo,
+     and AC IDs (`T{N}-AC-{NN}`, `XC-NN`) or task numbers inside the
+     diff — comments, test names, fixtures — are a Hotspot: the plan
+     is invisible from the code repo. In home mode they are fine.
    - Treat `Review Focus` as claims to verify against the code and
      diff, not as truth. False or incomplete claims become Hotspots.
      Missing, generic, or non-actionable entries become Blind Spots.
+   - Fix-lane logs (`fix-*.md`, `chore-*.md`, … — see `/wrap-up`'s
+     fix lane) carry no Acceptance Coverage or AC IDs by design;
+     their absence is not a Blind Spot there. Verify the
+     **Root Cause** section instead: does the diff actually address
+     the stated cause rather than the symptom, and does a
+     regression test pin it? A missing, vague, or unconvincing
+     Root Cause is a Blind Spot. Fix-lane scopes (e.g. `work/main/`)
+     may have no `plan.md` — skip plan-based checks there.
 
 3. **Look deeper if something seems off:**
    - `git log -p <file>` for evolution of suspicious files

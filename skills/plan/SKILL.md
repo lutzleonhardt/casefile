@@ -23,22 +23,32 @@ Create or switch to the feature branch before running `/plan`. The
 branch is the unit of work: one branch has one active work plan at
 `docs/work/<scope>/plan.md`.
 
-Before locating or writing plan artifacts, determine the active work root:
+Before locating or writing plan artifacts, determine the active work root.
 
-1. Run `git branch --show-current`.
-2. If the branch name is empty (detached HEAD), stop and ask the user to
-   switch to a branch before planning task work.
-3. Derive `<scope>` from the branch name:
-   - `main` stays `main`; `master` stays `master`.
-   - Otherwise take the part after the final slash, so
-     `feature/f1234-user-import` becomes `f1234-user-import`.
-   - Normalize to lowercase kebab-case: replace characters outside
-     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
-     and trim leading/trailing punctuation.
-4. Use `docs/work/<scope>/` as the work root.
+**Primary path — `vault` CLI** (works in home and vault mode):
 
-Do not infer scope from other `docs/work/*` directories. If a branch is
-renamed, rename the matching `docs/work/<old-scope>/` directory in the
+```
+vault root -v
+```
+
+Trust its output verbatim: `work root` is where `plan.md` and
+`task-log/` live — every `docs/work/<scope>/` path in this skill
+refers to it. `doc root` is where project-global docs (specs,
+architecture, improvements) live — every other `docs/` path in this
+skill resolves against it. `scope` and `mode` come from the same
+output; do not re-derive them. In vault mode the work root lies in
+a private vault git repository; work artifacts must never enter the
+current repository.
+
+**Fallback (CLI not on PATH):** home mode only — work root is
+`docs/work/<scope>/`, doc root is `docs/`, where `<scope>` is the
+branch name's last `/`-segment in lowercase kebab-case
+(`main`/`master` stay as-is; detached HEAD: stop and ask the user
+to switch to a branch). If `git config --get vault.project` is
+non-empty, stop: vault mode requires the `vault` CLI.
+
+Do not infer scope from other work-root directories. If a branch is
+renamed, rename the matching `<work-root>` directory in the
 same commit or keep using the old branch name. Legacy artifacts in
 `docs/plans/` and `docs/task-log/` must be migrated before using the
 scoped workflow.
@@ -96,12 +106,21 @@ scoped workflow.
   `Key Discoveries`. A task that says "implement section 3.2 of
   the spec" is broken by definition.
 - **Acceptance built in and traceable.** Each task carries its
-  own verification — prefer automated tests (unit or integration).
+  own verification — prefer automated evidence, but a permanent
+  test is only one form of it: a command plus its recorded result
+  in the task log counts fully.
   Each acceptance criterion gets a stable ID:
   `T{N}-AC-{NN}` where `{N}` is the task number exactly as written
   in the plan (`T3`, `T3.5`, `T17`, ...) and `{NN}` is a zero-padded
   counter starting at `01`. Use those IDs in `/start-task`,
-  `/wrap-up`, `/commit`, and `/review`.
+  `/wrap-up`, `/commit`, and `/review`. Whether they may also
+  appear in the code itself depends on the work mode: in home mode
+  the plan is committed next to the code, so tagging a test or a
+  source comment with its AC ID is allowed and useful; in vault
+  mode the plan is invisible from the repository, so AC IDs
+  (`T{N}-AC-{NN}`, `XC-NN`) and task numbers stay out of every file
+  of the repository — the AC → test mapping lives in the task log's
+  Acceptance Coverage instead.
   - During draft planning, renumber freely until the user approves.
   - After the plan is accepted/committed, AC IDs are append-only:
     if an AC is dropped or reordered, leave a gap and do not
@@ -156,6 +175,9 @@ For each task, produce:
     renumbering if an AC is removed later.
   - Prefer behavior phrasing: Given/When/Then or a compact
     observable assertion.
+  - State the outcome, never the mechanism. An AC that names a
+    file, a spec, or a concrete assertion is a planning bug: it
+    prescribes the implementation instead of what must be true.
   - If this task contributes to a cross-cutting acceptance item,
     mention the `XC-NN` ID here; `/start-task` will not load the
     plan-end cross-cutting section by default.
@@ -256,5 +278,11 @@ This keeps the plan a guide, not a straitjacket — and gives every
    > ```bash
    > git add docs/work/<scope>/plan.md
    > git commit -m "plan: <spec title>"
+   > ```
+   In vault mode, recommend committing in the vault repo instead
+   (never in the current repository):
+   > ```bash
+   > git -C <vault-root> add <project>/work/<scope>/plan.md
+   > git -C <vault-root> commit -m "plan: <spec title> (<project>)"
    > ```
 3. The plan now feeds `/start-task N` for execution.

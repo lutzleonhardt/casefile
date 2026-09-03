@@ -1,0 +1,592 @@
+#!/usr/bin/env python3
+"""vault — thin CLI for the vault-mode task-log system.
+
+Links customer-repo commits to task logs in a private vault repo via
+git notes. stdlib only, single file, works on Linux/macOS/Windows.
+
+Companion of the /plan, /start-task, /wrap-up, /commit, /review skills:
+the skills carry the judgment, this tool carries the plumbing.
+"""
+
+import argparse
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+NOTES_REF = "refs/notes/commits"
+
+
+def die(msg, code=1):
+    print(f"vault: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def run(args, cwd=None, check=True):
+    """Run a command, return (rc, stdout-stripped)."""
+    r = subprocess.run(
+        args, cwd=cwd, capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    if check and r.returncode != 0:
+        die(f"command failed: {' '.join(args)}\n{(r.stderr or '').strip()}")
+    return r.returncode, (r.stdout or "").strip()
+
+
+def git(*args, cwd=None, check=True):
+    return run(["git", *args], cwd=cwd, check=check)
+
+
+def git_config(key):
+    rc, out = git("config", "--get", key, check=False)
+    return out if rc == 0 and out else None
+
+
+def current_branch():
+    _, out = git("branch", "--show-current")
+    if not out:
+        die("detached HEAD — switch to a branch first")
+    return out
+
+
+def derive_scope(branch):
+    """Same rules as the skills: main/master stay; else last path segment,
+    lowercase kebab-case."""
+    if branch in ("main", "master"):
+        return branch
+    s = branch.rsplit("/", 1)[-1].lower()
+    s = re.sub(r"[^a-z0-9._-]", "-", s)
+    s = re.sub(r"-{2,}", "-", s)
+    s = s.strip("-._")
+    if not s:
+        die(f"cannot derive scope from branch {branch!r}")
+    return s
+
+
+class Ctx:
+    """Scope (and thus work_root) is derived lazily from the current
+    branch: scope-free commands (why, search, backup, restore) never
+    touch it and therefore also work on a detached HEAD."""
+
+    def __init__(self):
+        rc, _ = git("rev-parse", "--git-dir", check=False)
+        if rc != 0:
+            die("not inside a git repository")
+        self._scope = None
+        self.project = git_config("vault.project")
+        if self.project:
+            self.mode = "vault"
+            root = git_config("vault.root") or str(Path.home() / "vault")
+            self.vault_root = Path(root).expanduser()
+            self.doc_root = self.vault_root / self.project
+            self.project_slug = self.project.replace("/", "-")
+            self.backup_ref = f"refs/notes/{self.project_slug}"
+        else:
+            self.mode = "home"
+            self.vault_root = None
+            self.doc_root = Path("docs")
+
+    @property
+    def scope(self):
+        if self._scope is None:
+            self._scope = derive_scope(current_branch())
+        return self._scope
+
+    @property
+    def work_root(self):
+        return self.doc_root / "work" / self.scope
+
+    def require_vault(self):
+        if self.mode != "vault":
+            die("not in vault mode (git config vault.project is unset)")
+        if not (self.vault_root / ".git").exists():
+            die(f"vault repo not found at {self.vault_root} "
+                f"(run: git init {self.vault_root})")
+
+
+def note_lines(sha):
+    rc, out = git("notes", "show", sha, check=False)
+    return out.splitlines() if rc == 0 else None
+
+
+def backup_push(ctx):
+    git("push", "--force", str(ctx.vault_root),
+        f"{NOTES_REF}:{ctx.backup_ref}")
+
+
+# ── subcommands ──────────────────────────────────────────────────────
+
+def cmd_enable(ctx, args):
+    if not re.fullmatch(r"[^/\s]+/[^/\s]+", args.project):
+        die(f"project must be <client>/<project>, got {args.project!r}")
+    git("config", "vault.project", args.project)
+    if args.root:
+        root = Path(args.root).expanduser().resolve()
+        git("config", "vault.root", str(root))
+    else:
+        cfg = git_config("vault.root")
+        root = Path(cfg).expanduser() if cfg else Path.home() / "vault"
+    if not (root / ".git").exists():
+        root.mkdir(parents=True, exist_ok=True)
+        run(["git", "init", "-q", str(root)])
+        print(f"vault repo initialized: {root}")
+    if git_config("notes.rewriteRef") is None:
+        git("config", "notes.rewriteRef", NOTES_REF)
+    print(f"vault mode enabled: {args.project}")
+    print(f"  vault:     {root}")
+    print(f"  scope:     {ctx.scope} (from current branch)")
+    print(f"  work root: {root / args.project / 'work' / ctx.scope}")
+    print("next: /plan writes there, /wrap-up records sessions, "
+          "/commit links via `vault link`")
+
+
+def cmd_disable(ctx, args):
+    if git_config("vault.project") is None:
+        print("vault mode was not enabled in this repo")
+        return
+    git("config", "--unset", "vault.project")
+    print("vault mode disabled "
+          "(vault.root, notes config and existing notes left in place)")
+
+def cmd_root(ctx, args):
+    if args.verbose:
+        print(f"mode:      {ctx.mode}")
+        if ctx.mode == "vault":
+            print(f"project:   {ctx.project}")
+            print(f"vault:     {ctx.vault_root}")
+        print(f"scope:     {ctx.scope}")
+        print(f"doc root:  {ctx.doc_root}")
+        print(f"work root: {ctx.work_root}")
+    else:
+        print(ctx.work_root)
+
+
+def cmd_why(ctx, args):
+    m = re.fullmatch(r"(.+):(\d+)", args.target)
+    if not m:
+        die("usage: vault why FILE:LINE")
+    file, line = m.group(1), int(m.group(2))
+    _, out = git("blame", "-s", "-L", f"{line},{line}", "--", file)
+    sha = out.split()[0].lstrip("^")
+    _, subject = git("log", "-1", "--format=%s", sha)
+    print(f"{file}:{line} -> {sha} ({subject})")
+    notes = note_lines(sha)
+    refs = [(l.split("tasklog:", 1)[1].strip(), "note")
+            for l in (notes or []) if l.startswith("tasklog:")]
+    if notes is not None and not refs:
+        print("note exists but contains no tasklog pointer:")
+        print("\n".join(f"  {l}" for l in notes))
+        sys.exit(2)
+    if not refs:
+        # Home-mode channel: the log travels inside the commit
+        # itself (staged together with the code by /commit).
+        _, shown = git("show", "--name-only", "--format=", sha)
+        refs = [(p, "commit") for p in shown.splitlines()
+                if re.search(r"(^|/)task-log/[^/]+\.md$", p)]
+    if not refs:
+        print("no note and no co-committed task log — nothing linked")
+        sys.exit(2)
+    for rel, src in refs:
+        if src == "note":
+            print(f"tasklog: {rel}")
+            path = (ctx.vault_root / rel) if ctx.mode == "vault" else Path(rel)
+            if not path.exists():
+                print(f"  MISSING in vault: {path}")
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            where = str(path)
+        else:
+            print(f"tasklog: {rel} (co-committed)")
+            # Read the log as of the commit, not the working tree —
+            # correct even after renames or on another branch.
+            rc, text = git("show", f"{sha}:{rel}", check=False)
+            if rc != 0:
+                print(f"  cannot read {rel} at {sha[:8]}")
+                continue
+            where = f"git show {sha[:8]}:{rel}"
+        lines = text.splitlines()
+        if args.head is not None and len(lines) > args.head:
+            print("  " + "\n  ".join(lines[:args.head]))
+            print(f"  … ({len(lines) - args.head} more lines: {where})")
+        else:
+            print("  " + "\n  ".join(lines))
+
+
+def current_session_paths():
+    """Transcript path(s) of the current Claude Code session.
+
+    Deterministic only: resolved via $CLAUDE_CODE_SESSION_ID. Codex
+    detection is a cwd heuristic and deliberately not included here —
+    codex sessions reach the archive via the log's Sessions lines."""
+    import os
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if not sid:
+        return []
+    return list((Path.home() / ".claude" / "projects").glob(
+        f"*/{sid}.jsonl"))
+
+
+def resolve_log(log_dir, ident):
+    """Locate a work item's log by identity. A numeric ident is the
+    plan lane (task-{N}-*.md); anything else is the fix lane — a
+    filename stem or stem prefix (fix-…, chore-…, docs-…).
+    Returns (log_path, item) where item names the sessions dir."""
+    if re.fullmatch(r"[\d.]+", ident):
+        hits = sorted(log_dir.glob(f"task-{ident}-*.md"))
+        item = f"task-{ident}"
+    else:
+        hits = sorted(log_dir.glob(f"{ident}*.md"))
+        item = None
+    if not hits:
+        die(f"no log matching {ident!r} in {log_dir} "
+            f"(run /wrap-up first)")
+    if len(hits) > 1:
+        die(f"ambiguous identity {ident!r}: "
+            + ", ".join(h.name for h in hits))
+    return hits[0], item or hits[0].stem
+
+
+def derive_home_project():
+    """Project identity for home mode: the origin remote's last two
+    path segments (trailing .git stripped), else home/<dirname>."""
+    rc, url = git("remote", "get-url", "origin", check=False)
+    if rc == 0 and url:
+        m = re.search(r"[:/]([^/:]+/[^/]+?)(?:\.git)?/?$", url)
+        if m:
+            return m.group(1)
+    return f"home/{Path.cwd().resolve().name}"
+
+
+def copy_sessions(ctx, n, log_path, dest=None, include_current=True):
+    """Copy transcripts listed in the log's Sessions section
+    (`transcript: <path>` tokens) — plus, by default, the current
+    session's transcript (the commit phase always runs after the
+    last wrap-up, so its session may not be in the log yet) — into
+    the vault, next to the log."""
+    text = log_path.read_text(encoding="utf-8", errors="replace")
+    listed = [Path(p).expanduser()
+              for p in re.findall(r"transcript:\s*(\S+)", text)
+              if "/" in p]
+    extra = ([p for p in current_session_paths() if p not in listed]
+             if include_current else [])
+    paths = listed + extra
+    if not paths:
+        print("sessions: no 'transcript:' entries in the log's "
+              "Sessions section and no current session — "
+              "nothing copied")
+        return
+    if dest is None:
+        dest = ctx.work_root / "sessions" / f"task-{n}"
+    copied = 0
+    for src in paths:
+        if not src.exists():
+            print(f"sessions: MISSING (expired/moved?): {src}")
+            continue
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest / src.name)
+        copied += 1
+    print(f"sessions: {copied}/{len(paths)} transcript(s) "
+          f"copied to {dest}")
+
+
+def cmd_link(ctx, args):
+    ctx.require_vault()
+    if re.fullmatch(r"[\d.]+", args.n):
+        if not args.slug:
+            die("numeric task N needs the log slug: vault link N SLUG")
+        stem = f"task-{args.n}-{args.slug}"
+        item = f"task-{args.n}"
+        default_msg = f"task-{args.n}: {args.slug} ({ctx.project})"
+    else:
+        stem = args.n
+        item = stem
+        default_msg = f"{stem} ({ctx.project})"
+        if args.slug:  # positional shift: the "slug" is the sha here
+            if args.sha != "HEAD":
+                die("fix-lane link takes at most one SHA argument")
+            args.sha = args.slug
+    rel = f"{ctx.project}/work/{ctx.scope}/task-log/{stem}.md"
+    log_path = ctx.vault_root / rel
+    if not log_path.exists():
+        die(f"task log not found: {log_path}\n(run /wrap-up first)")
+    _, sha = git("rev-parse", args.sha)
+    pointer = f"tasklog: {rel}"
+    existing = note_lines(sha)
+    if existing is not None and pointer in existing:
+        print(f"note already present on {sha[:8]}")
+    elif existing is not None:
+        git("notes", "append", "-m", pointer, sha)
+        print(f"note appended to {sha[:8]}")
+    else:
+        git("notes", "add", "-m", pointer, sha)
+        print(f"note added to {sha[:8]}")
+    if git_config("notes.rewriteRef") is None:
+        git("config", "notes.rewriteRef", NOTES_REF)
+    if not args.no_session:
+        copy_sessions(ctx, args.n, log_path,
+                      dest=ctx.work_root / "sessions" / item)
+    vr = str(ctx.vault_root)
+    git("-C", vr, "add", ctx.project)
+    rc, _ = git("-C", vr, "diff", "--cached", "--quiet", check=False)
+    if rc != 0:
+        msg = args.message or default_msg
+        git("-C", vr, "commit", "-m", msg)
+        print(f"vault committed: {msg}")
+    else:
+        print("vault: nothing new to commit")
+    backup_push(ctx)
+    print(f"notes backed up to {ctx.backup_ref}")
+
+
+def cmd_archive(ctx, args):
+    """Copy task N's session transcripts into the vault. Works in
+    both modes: vault mode archives next to the log (same target as
+    `vault link`); home mode is the reason this exists — the log
+    lives in the repo, but transcripts are ephemeral and belong in
+    the vault as a personal archive."""
+    if ctx.mode == "vault":
+        ctx.require_vault()
+        vault_root, project = ctx.vault_root, ctx.project
+    else:
+        root = git_config("vault.root") or str(Path.home() / "vault")
+        vault_root = Path(root).expanduser()
+        if not (vault_root / ".git").exists():
+            die(f"no vault repo at {vault_root} — transcripts not "
+                f"archived (git init {vault_root} to create one)")
+        project = derive_home_project()
+    log_path, item = resolve_log(ctx.work_root / "task-log", args.n)
+    dest = (vault_root / project / "work" / ctx.scope
+            / "sessions" / item)
+    copy_sessions(ctx, args.n, log_path, dest=dest,
+                  include_current=not args.no_current)
+    vr = str(vault_root)
+    git("-C", vr, "add", project)
+    rc, _ = git("-C", vr, "diff", "--cached", "--quiet", check=False)
+    if rc != 0:
+        msg = f"sessions: {item} ({project})"
+        git("-C", vr, "commit", "-m", msg)
+        print(f"vault committed: {msg}")
+    else:
+        print("vault: nothing new to commit")
+
+
+def cmd_backup(ctx, args):
+    ctx.require_vault()
+    backup_push(ctx)
+    print(f"notes backed up to {ctx.backup_ref}")
+
+
+def cmd_restore(ctx, args):
+    ctx.require_vault()
+    rc, _ = git("rev-parse", "-q", "--verify", NOTES_REF, check=False)
+    if rc == 0 and not args.force:
+        die(f"local {NOTES_REF} exists — use --force to overwrite from backup")
+    rc, out = git("ls-remote", str(ctx.vault_root), ctx.backup_ref)
+    if not out:
+        die(f"no backup ref {ctx.backup_ref} in vault {ctx.vault_root}")
+    git("fetch", str(ctx.vault_root), f"+{ctx.backup_ref}:{NOTES_REF}")
+    print(f"notes restored from {ctx.backup_ref}")
+
+
+def cmd_search(ctx, args):
+    ctx.require_vault()
+    base = ctx.vault_root if args.all else ctx.vault_root / ctx.project
+    if not base.exists():
+        die(f"nothing to search yet: {base} does not exist")
+    rc, _ = run(["rg", "--version"], check=False)
+    if rc == 0:
+        cmd = ["rg", "-n", "--no-heading", args.term, str(base)]
+    else:
+        cmd = ["grep", "-rn", args.term, str(base)]
+    r = subprocess.run(cmd)
+    if r.returncode == 1:
+        print("no matches")
+
+
+def cmd_session(ctx, args):
+    """Print log-ready lines identifying the current agent session(s)."""
+    import datetime
+    import os
+    today = datetime.date.today().isoformat()
+    lines = []
+
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if sid and args.agent in ("auto", "claude-code", "all"):
+        hits = list((Path.home() / ".claude" / "projects").glob(
+            f"*/{sid}.jsonl"))
+        if hits:
+            lines.append(f"- claude-code {sid} ({today}) — "
+                         f"transcript: {hits[0]}")
+        else:
+            lines.append(f"- claude-code {sid} ({today}) — "
+                         f"transcript: NOT FOUND (session id known, "
+                         f"file missing)")
+
+    if args.agent in ("codex", "all") or (args.agent == "auto" and not sid):
+        base = Path.home() / ".codex" / "sessions"
+        rollouts = sorted(base.glob("*/*/*/rollout-*.jsonl"),
+                          key=lambda p: p.stat().st_mtime, reverse=True)
+        cwd = str(Path.cwd())
+        for f in rollouts[:20]:
+            head = f.open(encoding="utf-8", errors="replace").read(4000)
+            if f'"cwd":"{cwd}"' in head:
+                m = re.match(
+                    r"rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl",
+                    f.name)
+                cid = m.group(1) if m else f.stem
+                lines.append(f"- codex {cid} ({today}) — transcript: {f}")
+                break
+        else:
+            if args.agent in ("codex", "all"):
+                lines.append(f"- codex: no recent rollout with cwd {cwd}")
+
+    if not lines:
+        die("no current session detected "
+            "(CLAUDE_CODE_SESSION_ID unset, no matching codex rollout)", 2)
+    print("\n".join(lines))
+
+
+def cmd_doctor(ctx, args):
+    ok = True
+
+    def item(label, good, detail=""):
+        nonlocal ok
+        mark = "ok " if good else "!! "
+        if not good:
+            ok = False
+        print(f"{mark}{label}{': ' + detail if detail else ''}")
+
+    print(f"mode: {ctx.mode} · scope: {ctx.scope}")
+    if ctx.mode == "home":
+        item("work root", ctx.work_root.exists(), str(ctx.work_root))
+        sys.exit(0 if ok else 1)
+    print(f"project: {ctx.project}")
+    vault_ok = (ctx.vault_root / ".git").exists()
+    item("vault repo", vault_ok, str(ctx.vault_root))
+    item("work root", ctx.work_root.exists(), str(ctx.work_root))
+    logs = sorted(ctx.work_root.glob("task-log/task-*.md"))
+    print(f"   task logs: {len(logs)}")
+    legacy = [p.parent for p in ctx.doc_root.glob("*/task-log")
+              if p.parent.name != "work"]
+    if legacy:
+        item("layout", False,
+             "pre-work/ scope dirs: " + ", ".join(str(p) for p in legacy)
+             + f" — move under {ctx.doc_root / 'work'}")
+    rr = git_config("notes.rewriteRef")
+    item("notes.rewriteRef", rr == NOTES_REF,
+         rr or "unset (notes will not survive rebase/amend)")
+    rc, local = git("rev-parse", "-q", "--verify", NOTES_REF, check=False)
+    local = local if rc == 0 else None
+    remote = None
+    if vault_ok:
+        _, out = git("ls-remote", str(ctx.vault_root), ctx.backup_ref,
+                     check=False)
+        remote = out.split()[0] if out else None
+    if local is None and remote is None:
+        item("notes", True, "none yet (no linked commits)")
+    elif local is None and remote:
+        item("notes", False,
+             f"no local notes but backup exists — run: vault restore")
+    elif remote is None:
+        item("backup", False, "never pushed — run: vault backup")
+    else:
+        item("backup", local == remote,
+             "in sync" if local == remote
+             else "differs from local notes — run: vault backup")
+    sys.exit(0 if ok else 1)
+
+
+def main():
+    p = argparse.ArgumentParser(
+        prog="vault",
+        description="Link commits to task logs in a private vault "
+                    "(git notes based).")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("enable",
+                       help="enable vault mode in this repo (config, "
+                            "notes.rewriteRef, vault init)")
+    s.add_argument("project", help="<client>/<project>, e.g. acme/webshop")
+    s.add_argument("--root",
+                   help="vault repo path (default: existing vault.root "
+                        "config, else ~/vault)")
+    s.set_defaults(fn=cmd_enable)
+
+    s = sub.add_parser("disable", help="disable vault mode in this repo")
+    s.set_defaults(fn=cmd_disable)
+
+    s = sub.add_parser("root", help="print the resolved work root")
+    s.add_argument("-v", "--verbose", action="store_true")
+    s.set_defaults(fn=cmd_root)
+
+    s = sub.add_parser("why", help="FILE:LINE -> commit -> task log")
+    s.add_argument("target")
+    s.add_argument("--head", type=int, default=None, metavar="N",
+                   help="truncate the log to N lines "
+                        "(default: print the whole log)")
+    s.set_defaults(fn=cmd_why)
+
+    s = sub.add_parser("link",
+                       help="attach note for task N to a commit, commit "
+                            "the vault, push notes backup")
+    s.add_argument("n", metavar="N",
+                   help="task number, or a fix-lane stem "
+                        "(fix-…, chore-…)")
+    s.add_argument("slug", nargs="?", default=None,
+                   help="log slug for numeric N: task-{N}-{slug}.md "
+                        "(omit for fix-lane stems)")
+    s.add_argument("sha", nargs="?", default="HEAD")
+    s.add_argument("-m", "--message", help="vault commit message")
+    s.add_argument("--no-session", action="store_true",
+                   help="skip copying the transcripts listed in the "
+                        "log's Sessions section into the vault "
+                        "(copying is the default)")
+    s.set_defaults(fn=cmd_link)
+
+    s = sub.add_parser("archive",
+                       help="copy a work item's session transcripts "
+                            "into the vault (home and vault mode)")
+    s.add_argument("n", metavar="N",
+                   help="task number, or a fix-lane stem "
+                        "(fix-…, chore-…)")
+    s.add_argument("--no-current", action="store_true",
+                   help="only the transcripts listed in the log — "
+                        "skip the current session (for retroactive "
+                        "backfills from an unrelated session)")
+    s.set_defaults(fn=cmd_archive)
+
+    s = sub.add_parser("backup", help="force-push notes ref to the vault")
+    s.set_defaults(fn=cmd_backup)
+
+    s = sub.add_parser("restore", help="restore notes ref from the vault")
+    s.add_argument("--force", action="store_true",
+                   help="overwrite an existing local notes ref")
+    s.set_defaults(fn=cmd_restore)
+
+    s = sub.add_parser("search", help="search task logs in the vault")
+    s.add_argument("term")
+    s.add_argument("--all", action="store_true",
+                   help="search the whole vault, not just this project")
+    s.set_defaults(fn=cmd_search)
+
+    s = sub.add_parser("session",
+                       help="print log-ready lines for the current "
+                            "agent session(s)")
+    s.add_argument("--agent", choices=["auto", "claude-code", "codex", "all"],
+                   default="auto",
+                   help="auto (default): claude-code via env var, codex "
+                        "only as fallback; codex/all force the codex "
+                        "cwd-match")
+    s.set_defaults(fn=cmd_session, needs_ctx=False)
+
+    s = sub.add_parser("doctor", help="check config, notes and backup state")
+    s.set_defaults(fn=cmd_doctor)
+
+    args = p.parse_args()
+    ctx = Ctx() if getattr(args, "needs_ctx", True) else None
+    args.fn(ctx, args)
+
+
+if __name__ == "__main__":
+    main()

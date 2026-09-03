@@ -25,24 +25,34 @@ blocked tasks only.
 
 ## Work scope
 
-Resolve the active work root before reading or writing task logs:
+Resolve the active work root before reading or writing task logs.
 
-1. Run `git branch --show-current`.
-2. If the branch name is empty (detached HEAD), stop and ask the user to
-   switch to a branch before writing task logs.
-3. Derive `<scope>` from the branch name:
-   - `main` stays `main`; `master` stays `master`.
-   - Otherwise take the part after the final slash, so
-     `feature/f1234-user-import` becomes `f1234-user-import`.
-   - Normalize to lowercase kebab-case: replace characters outside
-     `a-z`, `0-9`, `.`, `_`, and `-` with `-`, collapse repeated `-`,
-     and trim leading/trailing punctuation.
-4. Use `docs/work/<scope>/` as the work root.
+**Primary path — `vault` CLI** (works in home and vault mode):
 
-Do not infer scope from other `docs/work/*` directories. If
-`docs/work/<scope>/plan.md` is missing, stop and tell the user to run
+```
+vault root -v
+```
+
+Trust its output verbatim: `work root` is where `plan.md` and
+`task-log/` live — every `docs/work/<scope>/` path in this skill
+refers to it. `doc root` is where project-global docs live — every
+other `docs/` path resolves against it. `scope` and `mode` come
+from the same output; do not re-derive them. In vault mode, never
+create, stage, or commit work files inside the current repository.
+
+**Fallback (CLI not on PATH):** home mode only — work root is
+`docs/work/<scope>/`, doc root is `docs/`, where `<scope>` is the
+branch name's last `/`-segment in lowercase kebab-case
+(`main`/`master` stay as-is; detached HEAD: stop and ask the user
+to switch to a branch). If `git config --get vault.project` is
+non-empty, stop: vault mode requires the `vault` CLI.
+
+Do not infer scope from other work-root directories. If
+`<work-root>/plan.md` is missing, stop and tell the user to run
 `/plan` on this branch or migrate the old plan/task logs into this scoped
 work root. Legacy `docs/task-log/` is not an automatic fallback.
+**Exception:** the fix lane (below) needs no plan — a missing
+`plan.md` never stops `/wrap-up fix`.
 
 ## Task identity — `$ARGUMENTS`
 
@@ -63,6 +73,46 @@ Resolution rules, in order:
 Fresh sessions (review-fix, retroactive wrap-up, cross-session
 handoff) always need the explicit argument — session context
 alone is not enough.
+
+## Fix lane — unplanned work (`/wrap-up fix …`)
+
+Not everything grows from a plan. A sporadic bugfix, a small
+chore, an ad-hoc improvement — one commit, no task number — still
+deserves provenance: log + commit link + session archive, minus
+the plan ceremony.
+
+- **Identity:** `fix-<slug>` — derive `<slug>` from the user's
+  description the same way task slugs are derived (short
+  kebab-case). Other conventional-commit types are valid stems
+  when the work clearly isn't a fix (`chore-…`, `docs-…`,
+  `perf-…`); `fix` is the default. State the chosen identity in
+  the closing message — `/commit fix` resolves it from there.
+- **File:** `docs/work/<scope>/task-log/fix-<slug>.md`. Scope
+  stays branch-derived: on `main`, `work/main/` is the natural
+  ad-hoc ledger; a side-fix on a feature branch lands in that
+  branch's scope — exactly where the relevance search will later
+  look for it.
+- **No plan required** — the plan.md check does not apply.
+- **Retroactive is the normal case:** the fix usually already
+  happened in this or another session; write the log from the
+  session's evidence while the user reviews the change.
+- **Template — slimmed base structure:**
+  - Add **### Root Cause** directly after `### Status` — for a
+    bug this is the section that pays rent later: what was
+    actually wrong, and why it manifested the way it did.
+  - Drop **Acceptance Coverage** entirely (there are no AC IDs).
+  - **Context for Next Task** only when the fix leaves something
+    behind (follow-up, gotcha); otherwise omit.
+  - Everything else (Files Modified, Key Decisions, Review Focus,
+    Test Evidence, Open Issues, Git State, Sessions) applies
+    unchanged.
+- **When NOT to use it:** trivial diffs without a diagnosis —
+  typo, dependency bump, comment fix — need no log; the commit is
+  documentation enough. The test: will someone plausibly ask in
+  six months why this line is the way it is? If a real root cause
+  was found or a behavior decision made, write the log.
+- **Closing message:** point at `/commit fix` (same session) or
+  `/commit fix-<slug>` (fresh session) instead of `/commit {N}`.
 
 ## Precondition — run BEFORE committing the task's code
 
@@ -88,6 +138,12 @@ If the task's code has already been committed when
 
 Ask the user which option before writing the file, so the
 summary lands in the right commit from the start.
+
+**Vault mode exception:** the summary never becomes part of the
+code commit — the link is a git note added by `/commit N`. If the
+task's code is already committed in vault mode, do not stop:
+proceed with the wrap-up and tell the user that `/commit N` will
+attach the note to the existing commit instead of creating one.
 
 ## Log-file lookup — merge or fresh
 
@@ -139,6 +195,8 @@ output as follows:
   this is forward-looking, not historical.
 - **Git State**: replace with current output of
   `git diff --stat` and `git status --short`.
+- **Sessions**: union — append the current session's line, never
+  rewrite or drop prior lines.
 
 ### Session marker
 
@@ -201,6 +259,12 @@ What was tested and how. Include:
 - Test commands run and their output
 - Manual verification steps taken
 - Screenshots or log snippets if relevant
+- Temporary probes: a probe answers a question once and must be
+  removed before the task closes — record its command and result
+  here instead. If it changed the code (a config workaround, a
+  pinned version), the constraint belongs in a comment next to
+  that code, not in this log. State explicitly that the probe is
+  gone; a probe still in the tree is an unfinished task.
 
 ### Acceptance Coverage
 One line per AC ID from the task's plan block.
@@ -236,6 +300,33 @@ Include:
 Run these commands and include their output:
 - `git diff --stat`
 - `git status --short`
+
+### Sessions
+One line per agent session that contributed to this task, so the
+raw transcripts stay findable from the log:
+
+```
+- <agent> <session-id> (<YYYY-MM-DD>) — transcript: <absolute path>
+```
+
+Determine the current session's line(s) with the `vault` CLI
+(works in home and vault mode):
+
+```
+vault session              # this Claude Code session (deterministic
+                           # via $CLAUDE_CODE_SESSION_ID)
+vault session --agent all  # additionally the newest Codex session
+                           # in this repo (cwd-matched heuristic)
+```
+
+Paste its output lines verbatim. Manual fallback without the CLI:
+Claude Code transcript is
+`~/.claude/projects/*/$CLAUDE_CODE_SESSION_ID.jsonl`; Codex is the
+newest `rollout-*.jsonl` under `~/.codex/sessions/` whose header
+contains this repo's `"cwd"`.
+
+Record only the sessions you can determine; earlier sessions keep
+their lines from prior merges.
 
 ## Additional sections for BLOCKED tasks only:
 
@@ -295,3 +386,8 @@ the summary; `/commit` makes the atomic commit. Keeping them
 split lets you extend the summary across sessions without
 amend-dance, and the final commit still contains one coherent
 story per task.
+
+In vault mode, adjust the closing message: the summary lives in
+the vault, `/commit N` commits code only and links it to the log
+via a git note, and the vault repo is committed by `/commit N` as
+well.
