@@ -14,7 +14,7 @@ means Task 3).
 Resolve the active roots before touching any plan, log, or doc path:
 
 ```
-vault root -v
+casefile root -v
 ```
 
 Trust its output verbatim: `work root` is where `plan.md` and
@@ -23,9 +23,9 @@ refers to it. `doc root` is where project-global docs (specs,
 architecture, improvements) live — every other `docs/` path in this
 skill resolves against it. `scope` and `mode` come from the same
 output; do not re-derive any of them, and let the CLI's own errors
-(detached HEAD, missing vault repo) stop the run. If `vault` is not
+(detached HEAD, missing casefile repo) stop the run. If `casefile` is not
 on PATH, stop: the kit ships with its CLI — reinstall it instead of
-deriving paths by hand. In vault mode, work artifacts never enter
+deriving paths by hand. In casefile mode, work artifacts never enter
 the current repository.
 
 If `<work-root>/plan.md` is missing, stop and tell the user to run
@@ -33,23 +33,23 @@ If `<work-root>/plan.md` is missing, stop and tell the user to run
 root `plan.md`, `docs/task-log/`) are never automatic fallbacks —
 migrate them into the scoped work root first.
 
-### Vault mode
+### Casefile mode
 
 Some repositories must not carry work artifacts (customer repos,
-work that stays local). Vault mode — enabled once per repo with
-`vault enable <client>/<project>` (config in `.git/config`, never
-committed; `vault disable` turns it off; enabling/disabling is a
+work that stays local). Casefile mode — enabled once per repo with
+`casefile enable <client>/<project>` (config in `.git/config`, never
+committed; `casefile disable` turns it off; enabling/disabling is a
 user decision — a skill never runs either command itself) —
 reroutes the work root
-into a private vault repository; commits are linked to task logs
+into a private casefile repository; commits are linked to task logs
 via git notes instead of committed files.
 
-- **Vault layout:** the vault is its own git repo. `<doc-root>/`
+- **Casefile layout:** the casefile is its own git repo. `<doc-root>/`
   holds project-global docs; `<doc-root>/work/<scope>/` holds
   `plan.md`, `task-log/` and `sessions/`.
 - **Origin stays clean:** never push notes refs to the repository's
-  origin — `vault link`'s backup push targets the private vault only.
-- **No AC IDs in the code:** in vault mode, AC IDs (`T{N}-AC-{NN}`,
+  origin — `casefile link`'s backup push targets the private casefile only.
+- **No AC IDs in the code:** in casefile mode, AC IDs (`T{N}-AC-{NN}`,
   `XC-NN`) and task numbers never appear in source comments, test
   names, fixtures, or any other file of the current repository —
   the plan is invisible from there, so to colleagues they are
@@ -58,8 +58,8 @@ via git notes instead of committed files.
   Home mode is different: the plan is committed next to the code,
   so tagging tests and comments with their AC ID is allowed and
   useful.
-- **Tooling:** `vault doctor` checks config, notes and backup
-  state; `vault why <file>:<line>` resolves a blamed line to its
+- **Tooling:** `casefile doctor` checks config, notes and backup
+  state; `casefile why <file>:<line>` resolves a blamed line to its
   task log.
 
 ## Your workflow:
@@ -139,18 +139,18 @@ via git notes instead of committed files.
      default.
    - `git show <hash>` only for commits that look directly
      relevant to the task.
-   - **Vault mode — notes-driven log retrieval:** run the per-file
+   - **Casefile mode — notes-driven log retrieval:** run the per-file
      history commands with `--show-notes`. A note line
-     `tasklog: <project>/work/<scope>/task-log/<file>` names the vault
+     `tasklog: <project>/work/<scope>/task-log/<file>` names the casefile
      log of the commit that produced those lines — read the
-     referenced log from the vault. This channel finds logs across
+     referenced log from the casefile. This channel finds logs across
      branch scopes (stacked branches), which the directory-scoped
      search above cannot. Logs read this way count toward the
      2–3 extra-log cap.
-   - **Vault mode — notes restore check (once per session):** run
-     `vault doctor`. If it reports missing local notes with an
+   - **Casefile mode — notes restore check (once per session):** run
+     `casefile doctor`. If it reports missing local notes with an
      existing backup (typical after a re-clone), offer to run
-     `vault restore`.
+     `casefile restore`.
 
 4. **Produce a Task Briefing** with this structure:
 
@@ -175,10 +175,10 @@ via git notes instead of committed files.
    3) File-level plan
    4) Testable artifact & review guard for the next task
    5) Test plan — list which AC IDs (`T{N}-AC-{NN}`) each
-      planned test or manual check covers. In vault mode this
+      planned test or manual check covers. In casefile mode this
       mapping stays in the briefing and the wrap-up log — carry
       the IDs into test names or comments only in home mode (see
-      Vault mode above).
+      Casefile mode above).
    6) Rollback plan
    
    Do not write code yet.

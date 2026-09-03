@@ -34,7 +34,7 @@ moved responsibility slipped through.
 Resolve the active roots before touching any plan, log, or doc path:
 
 ```
-vault root -v
+casefile root -v
 ```
 
 Trust its output verbatim: `work root` is where `plan.md` and
@@ -43,9 +43,9 @@ refers to it. `doc root` is where project-global docs (specs,
 architecture, improvements) live — every other `docs/` path in this
 skill resolves against it. `scope` and `mode` come from the same
 output; do not re-derive any of them, and let the CLI's own errors
-(detached HEAD, missing vault repo) stop the run. If `vault` is not
+(detached HEAD, missing casefile repo) stop the run. If `casefile` is not
 on PATH, stop: the kit ships with its CLI — reinstall it instead of
-deriving paths by hand. In vault mode, work artifacts never enter
+deriving paths by hand. In casefile mode, work artifacts never enter
 the current repository.
 
 ## Review scope — commit range vs. working tree
@@ -113,7 +113,7 @@ detection.
    - Check if tests were added or updated
    - Check the relevant `docs/work/<scope>/task-log/` entry for
      Acceptance Coverage, Review Focus, and AC IDs when reviewing a
-     task with a wrap-up log. In vault mode, AC IDs
+     task with a wrap-up log. In casefile mode, AC IDs
      (`T{N}-AC-{NN}`, `XC-NN`) or task numbers inside the
      diff — comments, test names, fixtures — are a Hotspot: the plan
      is invisible from the code repo. In home mode they are fine.

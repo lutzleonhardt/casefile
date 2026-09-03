@@ -26,7 +26,7 @@ branch is the unit of work: one branch has one active work plan at
 Resolve the active roots before touching any plan, log, or doc path:
 
 ```
-vault root -v
+casefile root -v
 ```
 
 Trust its output verbatim: `work root` is where `plan.md` and
@@ -35,9 +35,9 @@ refers to it. `doc root` is where project-global docs (specs,
 architecture, improvements) live — every other `docs/` path in this
 skill resolves against it. `scope` and `mode` come from the same
 output; do not re-derive any of them, and let the CLI's own errors
-(detached HEAD, missing vault repo) stop the run. If `vault` is not
+(detached HEAD, missing casefile repo) stop the run. If `casefile` is not
 on PATH, stop: the kit ships with its CLI — reinstall it instead of
-deriving paths by hand. In vault mode, work artifacts never enter
+deriving paths by hand. In casefile mode, work artifacts never enter
 the current repository.
 
 If a branch is renamed, rename the matching `<work-root>` directory
@@ -108,7 +108,7 @@ migrate them into the scoped work root first.
   `/wrap-up`, `/commit`, and `/review`. Whether they may also
   appear in the code itself depends on the work mode: in home mode
   the plan is committed next to the code, so tagging a test or a
-  source comment with its AC ID is allowed and useful; in vault
+  source comment with its AC ID is allowed and useful; in casefile
   mode the plan is invisible from the repository, so AC IDs
   (`T{N}-AC-{NN}`, `XC-NN`) and task numbers stay out of every file
   of the repository — the AC → test mapping lives in the task log's
@@ -272,10 +272,10 @@ This keeps the plan a guide, not a straitjacket — and gives every
    > git add docs/work/<scope>/plan.md
    > git commit -m "plan: <spec title>"
    > ```
-   In vault mode, recommend committing in the vault repo instead
+   In casefile mode, recommend committing in the casefile repo instead
    (never in the current repository):
    > ```bash
-   > git -C <vault-root> add <project>/work/<scope>/plan.md
-   > git -C <vault-root> commit -m "plan: <spec title> (<project>)"
+   > git -C <casefile-root> add <project>/work/<scope>/plan.md
+   > git -C <casefile-root> commit -m "plan: <spec title> (<project>)"
    > ```
 3. The plan now feeds `/start-task N` for execution.

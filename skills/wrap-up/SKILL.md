@@ -27,7 +27,7 @@ for completed or blocked tasks only.
 Resolve the active roots before touching any plan, log, or doc path:
 
 ```
-vault root -v
+casefile root -v
 ```
 
 Trust its output verbatim: `work root` is where `plan.md` and
@@ -36,9 +36,9 @@ refers to it. `doc root` is where project-global docs (specs,
 architecture, improvements) live — every other `docs/` path in this
 skill resolves against it. `scope` and `mode` come from the same
 output; do not re-derive any of them, and let the CLI's own errors
-(detached HEAD, missing vault repo) stop the run. If `vault` is not
+(detached HEAD, missing casefile repo) stop the run. If `casefile` is not
 on PATH, stop: the kit ships with its CLI — reinstall it instead of
-deriving paths by hand. In vault mode, work artifacts never enter
+deriving paths by hand. In casefile mode, work artifacts never enter
 the current repository.
 
 If `<work-root>/plan.md` is missing, stop and tell the user to run
@@ -133,9 +133,9 @@ If the task's code has already been committed when
 Ask the user which option before writing the file, so the
 summary lands in the right commit from the start.
 
-**Vault mode exception:** the summary never becomes part of the
+**Casefile mode exception:** the summary never becomes part of the
 code commit — the link is a git note added by `/commit N`. If the
-task's code is already committed in vault mode, do not stop:
+task's code is already committed in casefile mode, do not stop:
 proceed with the wrap-up and tell the user that `/commit N` will
 attach the note to the existing commit instead of creating one.
 
@@ -303,13 +303,13 @@ raw transcripts stay findable from the log:
 - <agent> <session-id> (<YYYY-MM-DD>) — transcript: <absolute path>
 ```
 
-Determine the current session's line(s) with the `vault` CLI
-(works in home and vault mode):
+Determine the current session's line(s) with the `casefile` CLI
+(works in home and casefile mode):
 
 ```
-vault session              # this Claude Code session (deterministic
+casefile session              # this Claude Code session (deterministic
                            # via $CLAUDE_CODE_SESSION_ID)
-vault session --agent all  # additionally the newest Codex session
+casefile session --agent all  # additionally the newest Codex session
                            # in this repo (cwd-matched heuristic)
 ```
 
@@ -377,7 +377,7 @@ split lets you extend the summary across sessions without
 amend-dance, and the final commit still contains one coherent
 story per task.
 
-In vault mode, adjust the closing message: the summary lives in
-the vault, `/commit N` commits code only and links it to the log
-via a git note, and the vault repo is committed by `/commit N` as
+In casefile mode, adjust the closing message: the summary lives in
+the casefile, `/commit N` commits code only and links it to the log
+via a git note, and the casefile repo is committed by `/commit N` as
 well.

@@ -22,7 +22,7 @@ command.
 Resolve the active roots before touching any plan, log, or doc path:
 
 ```
-vault root -v
+casefile root -v
 ```
 
 Trust its output verbatim: `work root` is where `plan.md` and
@@ -31,9 +31,9 @@ refers to it. `doc root` is where project-global docs (specs,
 architecture, improvements) live — every other `docs/` path in this
 skill resolves against it. `scope` and `mode` come from the same
 output; do not re-derive any of them, and let the CLI's own errors
-(detached HEAD, missing vault repo) stop the run. If `vault` is not
+(detached HEAD, missing casefile repo) stop the run. If `casefile` is not
 on PATH, stop: the kit ships with its CLI — reinstall it instead of
-deriving paths by hand. In vault mode, work artifacts never enter
+deriving paths by hand. In casefile mode, work artifacts never enter
 the current repository.
 
 If `<work-root>/plan.md` is missing, stop and tell the user to run
@@ -41,31 +41,31 @@ If `<work-root>/plan.md` is missing, stop and tell the user to run
 root `plan.md`, `docs/task-log/`) are never automatic fallbacks —
 migrate them into the scoped work root first.
 
-## Vault mode differences
+## Casefile mode differences
 
-In vault mode the work artifacts never enter the current
+In casefile mode the work artifacts never enter the current
 repository. This changes the commit mechanics:
 
 - **Staging list:** `[code]` files only. The `[log]` file (and
-  `[plan]` for BLOCKED+replan) live in the **vault repo** instead,
+  `[plan]` for BLOCKED+replan) live in the **casefile repo** instead,
   not staged here.
 - **Link:** after the code commit, one command attaches the git
-  note (`tasklog:` pointer), commits the vault repo, and pushes the
-  notes backup into the vault:
+  note (`tasklog:` pointer), commits the casefile repo, and pushes the
+  notes backup into the casefile:
   ```
-  vault link {N} {slug} [{sha}] -m "task-N: <title> ({project})"
+  casefile link {N} {slug} [{sha}] -m "task-N: <title> ({project})"
   ```
   By default this also copies the transcripts listed in the log's
-  `### Sessions` section into the vault (safety net against
+  `### Sessions` section into the casefile (safety net against
   transcript expiry and machine loss). Pass `--no-session` only
   when the user explicitly wants the raw transcripts excluded.
 - **Code already committed** (e.g. wrap-up ran after the commit):
   skip `git add`/`git commit`, ask the user to confirm the target
-  commit hash, then run `vault link {N} {slug} <hash>` against it.
+  commit hash, then run `casefile link {N} {slug} <hash>` against it.
 - **Never** push notes refs or anything else to the repository's
-  origin. `vault link`'s backup push targets the private vault only.
+  origin. `casefile link`'s backup push targets the private casefile only.
 
-The `vault link` command appears in the commit plan (step 5) and
+The `casefile link` command appears in the commit plan (step 5) and
 runs only after the user confirms.
 
 ## Home mode: session archive
@@ -73,19 +73,19 @@ runs only after the user confirms.
 In home mode the log and code are committed to the repository
 itself — but the session transcripts under `~/.claude/projects/`
 (and `~/.codex/sessions/`) are ephemeral: nothing preserves them.
-`/commit` therefore archives them into the vault repo, which acts
+`/commit` therefore archives them into the casefile repo, which acts
 as the personal session archive even for home-mode projects. After
 the code commit, run:
 
 ```
-vault archive {N}
+casefile archive {N}
 ```
 
 It copies the transcripts listed in the log's `### Sessions`
 section **plus the current session** (a resume's ID may not be
 in the log yet — the commit phase always runs after the last
-wrap-up) into `<vault>/<project>/work/<scope>/sessions/task-{N}/`
-and commits the vault repo. If it fails with "no vault repo",
+wrap-up) into `<casefile>/<project>/work/<scope>/sessions/task-{N}/`
+and commits the casefile repo. If it fails with "no casefile repo",
 report that one line and continue — the archive is a safety net,
 never a commit blocker. Missing source files (expired transcripts)
 are reported per line, not fatal. Skip the step only when the user
@@ -116,8 +116,8 @@ via (a) this session's `/wrap-up fix` identity, else (b) exactly
 one uncommitted `<type>-*.md` log in the scope's `task-log/` —
 if several match, list them and stop. Everywhere this skill says
 `task-{N}-{slug}.md`, a fix item reads `{stem}.md`; everywhere it
-says `{N}` (including `vault link` and `vault archive`), pass the
-stem — `vault link fix-<slug> [sha]` takes no separate slug
+says `{N}` (including `casefile link` and `casefile archive`), pass the
+stem — `casefile link fix-<slug> [sha]` takes no separate slug
 argument.
 
 ## Workflow
@@ -181,8 +181,8 @@ Do not auto-resolve any of these — surface them and wait.
 - For BLOCKED with Re-Plan: also include
   `docs/work/<scope>/plan.md` (the updated plan).
 
-Vault mode: stage `[code]` files only — the log and plan are
-committed to the vault repo instead (see Vault mode differences).
+Casefile mode: stage `[code]` files only — the log and plan are
+committed to the casefile repo instead (see Casefile mode differences).
 
 **Commit message template (home mode):**
 
@@ -194,7 +194,7 @@ committed to the vault repo instead (see Vault mode differences).
 - **Fix lane:** `<type>: <title from log>` (e.g. `fix: …`,
   `chore: …`) — the stem's type is the conventional-commit type.
 
-**Commit message template (vault mode):** the code repo does not
+**Commit message template (casefile mode):** the code repo does not
 carry the plan or task logs, so workflow vocabulary (`task-N`,
 `replan`, `blocked`) must not leak into its history — to colleagues
 it references a numbering that does not exist. Use a plain,
@@ -205,10 +205,10 @@ conventional message instead:
   ask the user if unsure what is appropriate in this repo.
 
 The task number stays fully traceable: it lives in the git note
-(`tasklog: .../task-{N}-{slug}.md`) and in the vault repo's own
+(`tasklog: .../task-{N}-{slug}.md`) and in the casefile repo's own
 commit message, which keeps the `task-N:` prefix.
 
-The same leak rule covers the diff itself: in vault mode, AC IDs
+The same leak rule covers the diff itself: in casefile mode, AC IDs
 (`T{N}-AC-{NN}`, `XC-NN`) and task numbers must not appear in
 source comments, test names, or fixtures of the code repo. Before
 building the commit plan, `git grep -nE 'T[0-9.]+-AC-[0-9]+|XC-[0-9]+'`
@@ -228,7 +228,7 @@ Partial T{N}-AC-06: <reason>
 Defers T{N}-AC-07 -> Task M
 ```
 
-Prefer `Covers` over `Closes`; AC IDs are not issue IDs. In vault
+Prefer `Covers` over `Closes`; AC IDs are not issue IDs. In casefile
 mode the code-repo commit gets no such body at all — the Acceptance
 Coverage is readable in the linked task log.
 
@@ -241,8 +241,8 @@ Present a single block to the user containing:
   - `[log]` — the task summary file (home mode only)
   - `[code]` — source files from Files Modified
   - `[plan]` — plan file (BLOCKED+replan only, home mode only)
-  - `[vault]` — vault mode: the exact `vault link …` command
-  - `[sessions]` — home mode: the exact `vault archive …` command
+  - `[casefile]` — casefile mode: the exact `casefile link …` command
+  - `[sessions]` — home mode: the exact `casefile archive …` command
     (see Home mode: session archive)
 - Any discrepancies from step 3 (missing / extra / already-staged
   files) with a short note each.
@@ -262,10 +262,10 @@ End with a confirmation prompt, e.g.:
 - **`yes` / `ok` / `commit`** — run `git add <files>` then
   `git commit -m "<message>"` (plus `-m "<body>"` if the shown
   plan included a body). Show the resulting commit hash and a
-  one-line confirmation. In vault mode, then run the `[vault]`
+  one-line confirmation. In casefile mode, then run the `[casefile]`
   command from the plan against the new hash and confirm with
   one line. In home mode, then run the `[sessions]` command from
-  the plan and confirm the copy count and vault commit with one
+  the plan and confirm the copy count and casefile commit with one
   line.
 - **`edit message`** — accept a revised message from the
   user and re-show the plan for confirmation. Do not
@@ -290,8 +290,8 @@ Do **not** push. Pushing is an explicit human action.
 - It does not run tests. Test evidence lives in the wrap-up.
 - It does not amend or rewrite history. If the user needs
   to amend a prior commit, they do that by hand.
-- It does not push to a remote. (Sole exception: `vault link`'s
-  notes backup push, which targets the local vault path and never
+- It does not push to a remote. (Sole exception: `casefile link`'s
+  notes backup push, which targets the local casefile path and never
   the repository's origin.)
 - It does not sweep files with `git add -A` or `git add .`.
   Every path in the staging list is explicit and traceable
