@@ -409,6 +409,13 @@ def cmd_search(ctx, args):
         print("no matches")
 
 
+def tilde(path):
+    """Home-relative form for log lines: published logs must not leak
+    absolute home paths; copy_sessions expanduser()s them back."""
+    s, home = str(path), str(Path.home())
+    return "~" + s[len(home):] if s.startswith(home + "/") else s
+
+
 def cmd_session(ctx, args):
     """Print log-ready lines identifying the current agent session(s)."""
     import datetime
@@ -422,7 +429,7 @@ def cmd_session(ctx, args):
             f"*/{sid}.jsonl"))
         if hits:
             lines.append(f"- claude-code {sid} ({today}) — "
-                         f"transcript: {hits[0]}")
+                         f"transcript: {tilde(hits[0])}")
         else:
             lines.append(f"- claude-code {sid} ({today}) — "
                          f"transcript: NOT FOUND (session id known, "
@@ -440,7 +447,8 @@ def cmd_session(ctx, args):
                     r"rollout-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-(.+)\.jsonl",
                     f.name)
                 cid = m.group(1) if m else f.stem
-                lines.append(f"- codex {cid} ({today}) — transcript: {f}")
+                lines.append(f"- codex {cid} ({today}) — "
+                             f"transcript: {tilde(f)}")
                 break
         else:
             if args.agent in ("codex", "all"):
