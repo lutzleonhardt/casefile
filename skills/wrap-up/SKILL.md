@@ -184,7 +184,10 @@ output as follows:
 - **Review Focus**: replace with the current view. This section is
   a live map for the next human review, not a historical record.
 - **Open Issues**: merge; drop issues that are now resolved
-  (note them in the session marker if helpful).
+  (note them in the session marker if helpful). Then apply the
+  promotion rule (see Open Issues): an issue that survives the
+  merge without a target task, or reappears unchanged from the
+  prior session, is promoted instead of carried again.
 - **Context for Next Task**: replace with the current view —
   this is forward-looking, not historical.
 - **Git State**: replace with current output of
@@ -287,6 +290,22 @@ remaining work into a follow-up task before committing.
 Unfinished work, known issues, open questions.
 Reference follow-up tasks where applicable.
 Format: "Issue description (→ Task N)"
+
+Promotion rule — this section is branch-local and must shrink, not
+become a growing carry-forward ledger:
+
+- An issue stays here only while a planned task on this branch
+  addresses it (`→ Task N`).
+- Promote an issue to `<doc-root>/improvements.md` when it has no
+  target task, or when it was already carried over once from the
+  predecessor log. Replace it here with one line:
+  `Promoted: <issue> (→ improvements register)`.
+- Register format, one line per item — dedupe on the issue text and
+  skip if an equivalent entry already exists:
+  `- [ ] <issue> — from task {N}, scope <scope> · source: wrap-up`
+- No drain, no coupling: nothing reads the register automatically.
+  It feeds `/plan` only when the user deliberately opens a task
+  from it.
 
 ### Context for Next Task
 What the next session needs to know to continue.
