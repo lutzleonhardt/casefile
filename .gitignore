@@ -1,7 +1,10 @@
-# Ephemere Handoff-Dokumente (siehe /handoff-Skill) — nie committen
+# Local-only migration notes (pre-rename installs) — never published
+/MIGRATION.md
+
+# Ephemeral session handoff documents — never commit
 handoff.md
 
-# macOS / Editor-Krempel
+# OS / editor clutter
 .DS_Store
 *.swp
 .idea/

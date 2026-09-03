@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 NOTES_REF = "refs/notes/commits"
-KIT_REPO = "lutzleonhardt/skill-kit-agentic-workflow"
+KIT_REPO = "lutzleonhardt/casefile"
 SKILL_NAMES = ["plan", "start-task", "wrap-up", "review", "commit",
                "why"]
 
