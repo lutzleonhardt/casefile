@@ -4,8 +4,8 @@
 Links customer-repo commits to task logs in a private casefile repo via
 git notes. stdlib only, single file, works on Linux/macOS/Windows.
 
-Companion of the /plan, /start-task, /wrap-up, /commit, /review skills:
-the skills carry the judgment, this tool carries the plumbing.
+Companion of the /plan, /start-task, /wrap-up, /commit, /review and
+/why skills: the skills carry the judgment, this tool the plumbing.
 `casefile skills` installs or updates those skills; the kit's install.sh
 bootstraps both and is safe to re-run as the updater.
 """
@@ -19,7 +19,8 @@ from pathlib import Path
 
 NOTES_REF = "refs/notes/commits"
 KIT_REPO = "lutzleonhardt/skill-kit-agentic-workflow"
-SKILL_NAMES = ["plan", "start-task", "wrap-up", "review", "commit"]
+SKILL_NAMES = ["plan", "start-task", "wrap-up", "review", "commit",
+               "why"]
 
 
 def die(msg, code=1):

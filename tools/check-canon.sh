@@ -1,10 +1,12 @@
 #!/bin/sh
 # Drift guard: the canonical Work-scope block must appear verbatim
-# in every published skill.
+# in every skill that resolves work/doc roots. Scope-free skills
+# (why) are exempt on purpose — the CLI resolves for them.
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 fail=0
-for f in skills/*/SKILL.md; do
+for s in plan start-task wrap-up review commit; do
+  f="skills/$s/SKILL.md"
   if python3 -c 'import sys
 canon = open(sys.argv[1]).read().strip()
 skill = open(sys.argv[2]).read()
