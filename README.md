@@ -155,6 +155,35 @@ separate, writes the six skills for the agents it finds — Claude Code
 those six names. Both scripts are short — read them first. Re-running
 either is the update.
 
+## First five minutes
+
+Install done — this is the loop, once per task.
+
+<details>
+<summary>Home mode — your own repo</summary>
+
+Write a short spec (`docs/specs/feature.md`), then in Claude Code:
+`/plan docs/specs/feature.md` → approve the task list →
+`/start-task 1` → approve the briefing, let it implement →
+`/wrap-up 1` → `/commit 1`. The plan and log land in
+`docs/work/<scope>/` (scope derived from the branch), committed next
+to the code. From then on, `casefile why <file>:<line>` answers from
+the log.
+
+</details>
+
+<details>
+<summary>Casefile mode — a client repo</summary>
+
+Once per repo: `casefile enable <client>/<project>` — creates the
+private casefile repo at `~/casefile` if needed; config lives in
+`.git/config`, never committed. The task loop is identical; `/commit`
+ends with `casefile link`, which attaches the git note, commits the
+casefile repo, and backs up the notes ref. `casefile doctor` checks
+the setup; `casefile disable` turns it off.
+
+</details>
+
 ## The skills
 
 | Skill | Job |
