@@ -10,8 +10,8 @@
 Output why.gif
 Set Shell "bash"
 Set FontSize 20
-Set Width 1360
-Set Height 600
+Set Width 1420
+Set Height 520
 Set Padding 20
 Set TypingSpeed 40ms
 
