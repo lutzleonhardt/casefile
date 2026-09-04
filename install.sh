@@ -3,8 +3,8 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/lutzleonhardt/casefile/main/install.sh | sh
 #
-# Installs the casefile CLI to ~/.local/bin and the skills for every
-# agent whose config dir exists (~/.claude, ~/.codex).
+# Installs the casefile CLI to ~/.local/bin — nothing else. Installing
+# the skills is a deliberate second step: `casefile skills install`.
 set -eu
 
 RAW="https://raw.githubusercontent.com/lutzleonhardt/casefile/main"
@@ -20,4 +20,4 @@ case ":$PATH:" in
   *) echo "note: $BIN is not on your PATH" ;;
 esac
 
-"$BIN/casefile" skills install
+echo "next: casefile skills install   # writes the six skills for the agents found (~/.claude, ~/.codex)"

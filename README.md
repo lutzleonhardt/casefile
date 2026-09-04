@@ -71,13 +71,15 @@ task, linked to its commit, does both.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/lutzleonhardt/casefile/main/install.sh | sh
+casefile skills install
 ```
 
-Installs the `casefile` CLI (single-file Python, stdlib only) to
-`~/.local/bin` and the skills for Claude Code (`~/.claude/skills/`) and
-Codex (`~/.codex/skills/`). Re-running it is the update. Both scripts
-are short — read them first. `casefile skills update` refreshes the
-skills alone.
+The first line installs the `casefile` CLI (single-file Python, stdlib
+only) to `~/.local/bin` — nothing else. The second, deliberately
+separate, writes the six skills for the agents it finds — Claude Code
+(`~/.claude/skills/`) and Codex (`~/.codex/skills/`) — overwriting
+those six names. Both scripts are short — read them first. Re-running
+either is the update.
 
 ## The skills
 
