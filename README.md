@@ -29,9 +29,11 @@ tasklog: docs/work/graph-view/task-log/task-4-hide-diagnostics-tab.md (co-commit
 </details>
 
 One command answered *why the Diagnostics tab is hidden* — and when it
-comes back. The answer was not written for this question. It is the task
-log that was committed together with the change, found via `git blame`.
-Reading provenance needs no AI: plain git and a single-file Python CLI.
+comes back. The answer was not written for this question. It is the
+task log that was committed together with the change, found via
+`git blame` — [read it in full](https://github.com/native-federation/devtools/blob/main/docs/work/graph-view/task-log/task-4-hide-diagnostics-tab.md)
+to see every section of a real log. Reading provenance needs no AI:
+plain git and a single-file Python CLI.
 
 Or hand the question to an agent. One real `claude -p` run in the same
 repo, answer unedited:
