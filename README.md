@@ -42,8 +42,27 @@ nowhere else, and it is linked to the commit that made the change.
 
 In casefile mode the commit ↔ log link lives in **local git notes**:
 the client repo never sees the logs *or* the notes ref — `casefile
-link` pushes its notes backup into the private casefile only. Two
-edge cases to know:
+link` pushes its notes backup into the private casefile only. On the
+operator's machine it looks like this
+([native-federation-website](https://github.com/native-federation/native-federation-website)
+is developed in casefile mode):
+
+```
+$ git log -1 --show-notes --format=short 4bf926e
+commit 4bf926eb9a768d08ec2f12276b4b8800bbf824a7
+Author: Lutz Leonhardt <kontakt@lutzleonhardt.de>
+
+    feat: link the published Chrome Web Store listing
+
+Notes:
+    tasklog: native-federation/native-federation-website/work/webstore-link/task-log/feat-add-link-to-store.md
+```
+
+The [same commit on GitHub](https://github.com/native-federation/native-federation-website/commit/4bf926eb9a768d08ec2f12276b4b8800bbf824a7)
+shows no note, and the repo carries no work directory at all. Unlike
+the demo at the top, this one is deliberately *not* reproducible from
+a clone: the provenance never left the operator's machine. Two edge
+cases to know:
 
 - **A fresh clone has no notes.** Notes do not travel with
   `git clone`; the links are still safe — every `casefile link`
