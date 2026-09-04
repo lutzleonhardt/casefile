@@ -34,6 +34,13 @@ acceptance coverage, open issues, and context for the next task. The log
 competes with no ticket system — it holds exactly what is written down
 nowhere else, and it is linked to the commit that made the change.
 
+The chain runs one layer deeper: closing a task also archives the **raw
+agent-session transcripts** that produced it — listed in the log's
+Sessions section, stored next to the log in the private casefile repo
+(in both modes), never in the code repo. The log is the curated record;
+the transcript is the evidence behind it, kept before the agent tool
+expires it.
+
 | | **Home mode** | **Casefile mode** |
 |---|---|---|
 | Artifacts live | `docs/work/<scope>/` inside the repo | a private casefile repo outside it |
