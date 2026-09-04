@@ -57,18 +57,21 @@ the question.
 
 ## Every commit carries its case
 
-Each task ends with one structured log: what changed and why, key
-decisions with the alternatives that were rejected, test evidence,
-acceptance coverage, open issues, and context for the next task. The log
-competes with no ticket system — it holds exactly what is written down
-nowhere else, and it is linked to the commit that made the change.
+Each task ends with one structured log — the intent behind the diff:
+what changed and why, key decisions with the alternatives that were
+rejected and why they lost, deviations from the plan, test evidence,
+acceptance coverage, open issues, and context for the next task. A diff
+shows what the code became; the log records why it became this and not
+something else. It competes with no ticket system — it holds exactly
+what is written down nowhere else, and it is linked to the commit that
+made the change.
 
 The chain runs one layer deeper: closing a task also archives the **raw
 agent-session transcripts** that produced it — listed in the log's
 Sessions section, stored next to the log in the private casefile repo
 (in both modes), never in the code repo. The log is the curated record;
-the transcript is the evidence behind it, kept before the agent tool
-expires it. Transcripts capture everything the agent saw — including
+the transcript is the raw evidence behind it — including the paths that
+were tried and abandoned — kept before the agent tool expires it. Transcripts capture everything the agent saw — including
 client code. Whether archiving them is appropriate for a given
 engagement is a contract question the operator answers, not the tool:
 pass `--no-session` to `casefile link` (or skip `casefile archive`)
