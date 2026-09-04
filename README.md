@@ -57,6 +57,12 @@ The agent read the full log, pulled the deferral rationale from the
 plan, and knew what has *not* happened yet. None of that context was in
 the question.
 
+The scope is deliberately narrow. Casefile does not help write the
+spec — discovery, requirements, and design happen elsewhere. It starts
+where a spec already exists and owns everything after: slicing it into
+commit-sized tasks that build on each other, step-by-step execution,
+and the audit trail of intent behind every change.
+
 ## Every commit carries its case
 
 Each task ends with one structured log — the intent behind the diff:
