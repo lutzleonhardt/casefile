@@ -68,13 +68,17 @@ agent-session transcripts** that produced it — listed in the log's
 Sessions section, stored next to the log in the private casefile repo
 (in both modes), never in the code repo. The log is the curated record;
 the transcript is the evidence behind it, kept before the agent tool
-expires it.
+expires it. Transcripts capture everything the agent saw — including
+client code. Whether archiving them is appropriate for a given
+engagement is a contract question the operator answers, not the tool:
+pass `--no-session` to `casefile link` (or skip `casefile archive`)
+and the transcripts stay out.
 
 | | **Home mode** | **Casefile mode** |
 |---|---|---|
 | Artifacts live | `docs/work/<scope>/` inside the repo | a private casefile repo outside it |
 | Commit ↔ log link | log committed next to the code | git notes (never pushed to origin) |
-| For | your own projects | client / regulated repos — zero footprint |
+| For | your own projects | client repos that must stay clean — zero footprint |
 
 In casefile mode the commit ↔ log link lives in **local git notes**:
 the client repo never sees the logs *or* the notes ref — `casefile
