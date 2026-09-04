@@ -145,6 +145,14 @@ continues, and wraps up again. The same merge joins the wrap-ups of
 different agents on one task into a single log, and absorbs `/review`
 findings before `/commit N` runs.
 
+Nor does everything grow from a plan. A sporadic bugfix or chore — one
+commit, no task number — gets the same provenance through the fix
+lane: `/wrap-up fix-<slug>` (or `chore-…`, `docs-…`) writes a slimmed
+log with a **Root Cause** section in place of acceptance coverage, and
+`/commit fix` links it like any task. Trivial diffs without a
+diagnosis need no log — the test is whether someone will plausibly ask
+in six months why this line is the way it is.
+
 Anthropic's [AI-Native SDLC playbook](https://claude.com/blog/the-ai-native-sdlc-playbook)
 chains versioned artifacts forward — intent, spec, plan, diff, review
 findings — and keeps standing knowledge in a deliberately short
@@ -209,7 +217,7 @@ the setup; `casefile disable` turns it off.
 |---|---|
 | `/plan` | Slice a spec into right-sized, testable tasks; key locations verified against the code; writes only after approval. |
 | `/start-task N` | Brief the task from the plan block, the predecessor log, and bounded history — then wait for approval. |
-| `/wrap-up N` | Write or extend the task log; merges across sessions; records plan deviations; handles BLOCKED with a re-plan. |
+| `/wrap-up N` | Write or extend the task log; merges across sessions; records plan deviations; fix lane for unplanned work; handles BLOCKED with a re-plan. |
 | `/review` | Guided review brief — quick per task, full before a PR, coverage for large diffs. Cross-checks the log's claims. |
 | `/commit N` | Stage code + log from the log's own record, show the plan, commit after confirmation; casefile mode links via git notes. |
 | `/why FILE:LINE` | The demo above, as a skill: blame → commit → log → answer, with the evidence chain cited. |
