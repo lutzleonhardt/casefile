@@ -62,7 +62,7 @@ plan, and knew what has *not* happened yet. None of that context was in
 the question.
 
 The scope is deliberately narrow. Casefile does not help write the
-spec — discovery, requirements, and design happen elsewhere. It starts
+spec; discovery, requirements, and design happen elsewhere. It starts
 where a spec already exists and owns everything after: slicing it into
 commit-sized tasks that build on each other, step-by-step execution,
 and the audit trail of intent behind every change.
@@ -74,20 +74,21 @@ what changed and why, key decisions with the alternatives that were
 rejected and why they lost, deviations from the plan, test evidence,
 acceptance coverage, open issues, and context for the next task. A diff
 shows what the code became; the log records why it became this and not
-something else. It competes with no ticket system — it holds exactly
+something else. It competes with no ticket system: it holds exactly
 what is written down nowhere else, and it is linked to the commit that
 made the change.
 
-The chain runs one layer deeper: closing a task also archives the **raw
-agent-session transcripts** that produced it — listed in the log's
-Sessions section, stored next to the log in the private casefile repo
-(in both modes), never in the code repo. The log is the curated record;
-the transcript is the raw evidence behind it — including the paths that
-were tried and abandoned — kept before the agent tool expires it.
-Transcripts capture everything the agent saw — including client code. Whether archiving them is appropriate for a given
-engagement is a contract question the operator answers, not the tool:
-pass `--no-session` to `casefile link` (or skip `casefile archive`)
-and the transcripts stay out.
+Closing a task also archives the **raw agent-session transcripts**
+that produced it, listed in the log's Sessions section and stored
+next to the log in the private casefile repo (in both modes), never
+in the code repo. The log is the curated record. The transcript is
+the raw evidence behind it, including the paths that were tried and
+abandoned, kept before the agent tool expires it. Transcripts capture
+everything the agent saw, client code included. Whether archiving
+them is appropriate for a given engagement is a contract question
+the operator answers, not the tool: pass `--no-session` to
+`casefile link` (or skip `casefile archive`) and the transcripts
+stay out.
 
 | | **Home mode** | **Casefile mode** |
 |---|---|---|
@@ -96,7 +97,7 @@ and the transcripts stay out.
 | For | your own projects | client repos that must stay clean — zero committed footprint |
 
 In casefile mode the commit ↔ log link lives in **local git notes**:
-the client repo never sees the logs *or* the notes ref — `casefile
+the client repo never sees the logs *or* the notes ref; `casefile
 link` pushes its notes backup into the private casefile only. On the
 operator's machine it looks like this
 ([native-federation-website](https://github.com/native-federation/native-federation-website)
@@ -136,10 +137,10 @@ cases to know:
 
 The second half of the system is the loop that writes those logs. A
 spec is sliced into isolated, commit-sized tasks, and each task is
-briefed from a deliberately small context: its own plan block — not
-the sibling tasks, not the spec — plus the predecessor's log and a
-bounded relevance search across older logs and git history. The
-context window is spent on the task at hand; everything else stays
+briefed from a small context: its own plan block (not the sibling
+tasks, not the spec) plus the predecessor's log and a bounded
+relevance search across older logs and git history. The context
+window is spent on the task at hand; everything else stays
 retrievable through the record.
 
 ```mermaid
@@ -155,7 +156,7 @@ flowchart LR
 
 The loop is not bound to one session — or one agent. `/wrap-up N` is
 safe to run repeatedly before the commit: when the log already exists,
-the new session's findings are merged into it under session markers —
+the new session's findings are merged into it under session markers:
 decisions and evidence accumulate, acceptance coverage upgrades,
 resolved issues drop out. A task that outgrows its session is handed
 off through its own log: a fresh session rebuilds the context from it,
@@ -163,18 +164,18 @@ continues, and wraps up again. The same merge joins the wrap-ups of
 different agents on one task into a single log, and absorbs `/review`
 findings before `/commit N` runs.
 
-Nor does everything grow from a plan. A sporadic bugfix or chore — one
-commit, no task number — gets the same provenance through the fix
+Not everything grows from a plan. A sporadic bugfix or chore, one
+commit with no task number, gets the same provenance through the fix
 lane: `/wrap-up fix-<slug>` (or `chore-…`, `docs-…`) writes a slimmed
 log with a **Root Cause** section in place of acceptance coverage, and
 `/commit fix` links it like any task. Trivial diffs without a
-diagnosis need no log — the test is whether someone will plausibly ask
+diagnosis need no log. The test is whether someone will plausibly ask
 in six months why this line is the way it is.
 
 Anthropic's [AI-Native SDLC playbook](https://claude.com/blog/the-ai-native-sdlc-playbook)
-chains versioned artifacts forward — intent, spec, plan, diff, review
-findings — and keeps standing knowledge in a deliberately short
-`CLAUDE.md`. Casefile adds the layer both leave out: history. `CLAUDE.md`
+chains versioned artifacts forward (intent, spec, plan, diff, review
+findings) and keeps standing knowledge in a short `CLAUDE.md`.
+Casefile adds the layer both leave out: history. `CLAUDE.md`
 holds state, not the reasons; the playbook's artifacts trace a feature
 forward, but nothing routes from a line of code back to the decision
 behind it, or hands one task's discoveries to the next. One log per
@@ -188,15 +189,15 @@ casefile skills install
 ```
 
 The first line installs the `casefile` CLI (single-file Python, stdlib
-only) to `~/.local/bin` — nothing else. The second, deliberately
-separate, writes the six skills for the agents it finds — Claude Code
-(`~/.claude/skills/`) and Codex (`~/.codex/skills/`) — overwriting
+only) to `~/.local/bin` and nothing else. The second step is separate
+on purpose: it writes the six skills for the agents it finds, Claude
+Code (`~/.claude/skills/`) and Codex (`~/.codex/skills/`), overwriting
 those six names. Read both before running them. Re-running either is
 the update.
 
 ## First five minutes
 
-Install done — this is the loop, once per task. Commands use Claude
+After the install, this is the loop, once per task. Commands use Claude
 Code's `/skill` syntax; in Codex, invoke the same skills as `$plan`,
 `$wrap-up`, and so on.
 
