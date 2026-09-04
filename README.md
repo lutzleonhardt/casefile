@@ -71,8 +71,8 @@ agent-session transcripts** that produced it — listed in the log's
 Sessions section, stored next to the log in the private casefile repo
 (in both modes), never in the code repo. The log is the curated record;
 the transcript is the raw evidence behind it — including the paths that
-were tried and abandoned — kept before the agent tool expires it. Transcripts capture everything the agent saw — including
-client code. Whether archiving them is appropriate for a given
+were tried and abandoned — kept before the agent tool expires it.
+Transcripts capture everything the agent saw — including client code. Whether archiving them is appropriate for a given
 engagement is a contract question the operator answers, not the tool:
 pass `--no-session` to `casefile link` (or skip `casefile archive`)
 and the transcripts stay out.
@@ -119,10 +119,13 @@ cases to know:
 
 ## Tasks build on the record
 
-The second half of the system is the loop that writes those logs. A spec
-is sliced into isolated, commit-sized tasks; each new task starts by
-reading its predecessor's log — not the whole history, not the sibling
-tasks.
+The second half of the system is the loop that writes those logs. A
+spec is sliced into isolated, commit-sized tasks, and each task is
+briefed from a deliberately small context: its own plan block — not
+the sibling tasks, not the spec — plus the predecessor's log and a
+bounded relevance search across older logs and git history. The
+context window is spent on the task at hand; everything else stays
+retrievable through the record.
 
 ```mermaid
 flowchart LR
