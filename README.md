@@ -8,6 +8,9 @@ Run in [native-federation/devtools](https://github.com/native-federation/devtool
 
 ![git blame gives a sha — casefile why prints the task log behind it](docs/assets/why.gif)
 
+<details>
+<summary>The same run as copyable text</summary>
+
 ```
 $ casefile why projects/devtools-ui/src/app/app.html:7 --head 8
 projects/devtools-ui/src/app/app.html:7 -> bae1956e (task-4: hide the Diagnostics tab)
@@ -23,6 +26,8 @@ tasklog: docs/work/graph-view/task-log/task-4-hide-diagnostics-tab.md (co-commit
   … (177 more lines: git show bae1956e:docs/work/graph-view/task-log/task-4-hide-diagnostics-tab.md)
 ```
 
+</details>
+
 One command answered *why the Diagnostics tab is hidden* — and when it
 comes back. The answer was not written for this question. It is the task
 log that was committed together with the change, found via `git blame`.
@@ -35,11 +40,16 @@ repo, answer unedited:
 $ claude -p 'Why is the Diagnostics tab hidden? Use /why on projects/devtools-ui/src/app/app.html:7'
 ```
 
+<details>
+<summary>The full answer — Answer · Evidence · Caveat</summary>
+
 > **Answer:** The Diagnostics tab was deliberately removed from the panel nav in graph-view Task 4 as a presentation-only change ahead of the 2026-08-25 demo: the view behind it was still an honest placeholder, so the tab is hidden until resolution-model **Task 10 (canonical Diagnostics)** lands and restores it. The route itself was left untouched — no redirect, no guard — so the placeholder stays reachable by direct deep link at `#/diagnostics` (hash routing; a path-based `/diagnostics` URL falls back to Packages). The deferral rationale is recorded in `docs/work/resolution-model/plan.md` under "Plan amendment (2026-08-23): demo resequencing".
 >
 > **Evidence:** `projects/devtools-ui/src/app/app.html:7` → `bae1956e` ("task-4: hide the Diagnostics tab") → `docs/work/graph-view/task-log/task-4-hide-diagnostics-tab.md` — sections *Task* and *Key Decisions* ("Route code untouched, comment only" and "Return-note placement").
 >
 > **Caveat:** Task 10 still hasn't landed (current sequence on `feature/resolution-model` is Task 12 next, then 10), so the hidden state is still the intended one. A known leftover from that decision: the capture-status strip can still show a plain-text `Diagnostics` label — deliberately left untouched per your call at the time, to be reconciled when Task 10 restores the tab.
+
+</details>
 
 The agent read the full log, pulled the deferral rationale from the
 plan, and knew what has *not* happened yet. None of that context was in
