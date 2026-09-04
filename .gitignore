@@ -2,7 +2,7 @@
 /MIGRATION.md
 
 # Ephemeral session handoff documents — never commit
-handoff.md
+handoff*.md
 
 # OS / editor clutter
 .DS_Store
