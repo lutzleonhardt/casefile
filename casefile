@@ -173,7 +173,18 @@ def cmd_why(ctx, args):
         die("usage: casefile why FILE:LINE")
     file, line = m.group(1), int(m.group(2))
     _, out = git("blame", "-s", "-L", f"{line},{line}", "--", file)
-    sha = out.split()[0].lstrip("^")
+    raw = out.split()[0]
+    if raw.startswith("^"):
+        # ^ marks blame boundary commits: legitimate at the root of a
+        # full clone, but in a shallow clone it is the truncation point
+        # and silently attributes the line to the wrong commit.
+        _, shallow = git("rev-parse", "--is-shallow-repository")
+        if shallow == "true":
+            die("blame hit the shallow-clone boundary — history is "
+                "truncated here; run: git fetch --unshallow")
+    sha = raw.lstrip("^")
+    if sha.startswith("0" * 8):
+        die("line is uncommitted — nothing to link yet")
     _, subject = git("log", "-1", "--format=%s", sha)
     print(f"{file}:{line} -> {sha} ({subject})")
     notes = note_lines(sha)
