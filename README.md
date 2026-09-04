@@ -176,4 +176,4 @@ A reference setup, extracted from daily use — not a framework looking
 for users. Read the skills, adapt them, keep what earns its place.
 Issues and discussion welcome; roadmap promises not included.
 
-Built by [Lutz Leonhardt](https://github.com/lutzleonhardt). MIT.
+Built by [Lutz Leonhardt](https://lutzleonhardt.de/). MIT.
