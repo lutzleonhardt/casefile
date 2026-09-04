@@ -135,6 +135,16 @@ flowchart LR
     W -. "task N+1 starts from this log" .-> S
 ```
 
+The loop is not bound to one session — or one agent. `/wrap-up N` is
+safe to run repeatedly before the commit: when the log already exists,
+the new session's findings are merged into it under session markers —
+decisions and evidence accumulate, acceptance coverage upgrades,
+resolved issues drop out. A task that outgrows its session is handed
+off through its own log: a fresh session rebuilds the context from it,
+continues, and wraps up again. The same merge joins the wrap-ups of
+different agents on one task into a single log, and absorbs `/review`
+findings before `/commit N` runs.
+
 Anthropic's [AI-Native SDLC playbook](https://claude.com/blog/the-ai-native-sdlc-playbook)
 chains versioned artifacts forward — intent, spec, plan, diff, review
 findings — and keeps standing knowledge in a deliberately short
