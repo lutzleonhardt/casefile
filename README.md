@@ -75,7 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/lutzleonhardt/casefile/main/install
 
 Installs the `casefile` CLI (single-file Python, stdlib only) to
 `~/.local/bin` and the skills for Claude Code (`~/.claude/skills/`) and
-Codex (`~/.codex/prompts/`). Re-running it is the update. Both scripts
+Codex (`~/.codex/skills/`). Re-running it is the update. Both scripts
 are short — read them first. `casefile skills update` refreshes the
 skills alone.
 

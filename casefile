@@ -490,7 +490,7 @@ def cmd_skills(ctx, args):
     if args.agent in ("codex", "all") or (
             args.agent == "auto" and (home / ".codex").exists()):
         agents.append(("codex", lambda n:
-                       home / ".codex" / "prompts" / f"{n}.md"))
+                       home / ".codex" / "skills" / n / "SKILL.md"))
     if not agents:
         die("no agent targets found (~/.claude and ~/.codex missing; "
             "use --agent to force one)")
