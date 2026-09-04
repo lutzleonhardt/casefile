@@ -10,12 +10,12 @@
 Output why.gif
 Set Shell "bash"
 Set FontSize 20
-Set Width 1000
-Set Height 680
+Set Width 1360
+Set Height 600
 Set Padding 20
 Set TypingSpeed 40ms
 
-Type "git blame -L 7,7 projects/devtools-ui/src/app/app.html"
+Type "git blame -s -L 7,7 projects/devtools-ui/src/app/app.html"
 Enter
 Sleep 3s
 
