@@ -175,7 +175,7 @@ in six months why this line is the way it is.
 Anthropic's [AI-Native SDLC playbook](https://claude.com/blog/the-ai-native-sdlc-playbook)
 chains versioned artifacts forward (intent, spec, plan, diff, review
 findings) and keeps standing knowledge in a short `CLAUDE.md`.
-Casefile adds the layer both leave out: history. `CLAUDE.md`
+Casefile adds the layer both leave out: the decision history. `CLAUDE.md`
 holds state, not the reasons; the playbook's artifacts trace a feature
 forward, but nothing routes from a line of code back to the decision
 behind it, or hands one task's discoveries to the next. One log per
