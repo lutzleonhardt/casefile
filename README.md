@@ -165,10 +165,16 @@ Install done — this is the loop, once per task.
 Write a short spec (`docs/specs/feature.md`), then in Claude Code:
 `/plan docs/specs/feature.md` → approve the task list →
 `/start-task 1` → approve the briefing, let it implement →
-`/wrap-up 1` → `/commit 1`. The plan and log land in
+`/wrap-up 1` → `/review` → `/commit 1`. The plan and log land in
 `docs/work/<scope>/` (scope derived from the branch), committed next
 to the code. From then on, `casefile why <file>:<line>` answers from
 the log.
+
+`/review` defaults to a quick per-task triage; `/review full` is the
+deeper pre-PR pass, `/review coverage` maps a large diff into an
+ordered walkthrough. It reads best from a session that did not write
+the code: run it in a fresh agent session and hand the findings back
+to the implementing session to verify and fix.
 
 </details>
 
