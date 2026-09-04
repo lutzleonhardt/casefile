@@ -2,6 +2,10 @@
 
 **AI-assisted development that `git blame` can explain.**
 
+Casefile combines six agent skills with a small Python CLI. The
+skills record why a change was made; `casefile why FILE:LINE`
+retrieves that record later through `git blame`.
+
 > *casefile — the file a lawyer keeps on their own side of the desk, deliberately separate from the official record.*
 
 Run in [native-federation/devtools](https://github.com/native-federation/devtools), a repo built with casefile:
@@ -89,7 +93,7 @@ and the transcripts stay out.
 |---|---|---|
 | Artifacts live | `docs/work/<scope>/` inside the repo | a private casefile repo outside it |
 | Commit ↔ log link | log committed next to the code | git notes (never pushed to origin) |
-| For | your own projects | client repos that must stay clean — zero footprint |
+| For | your own projects | client repos that must stay clean — zero committed footprint |
 
 In casefile mode the commit ↔ log link lives in **local git notes**:
 the client repo never sees the logs *or* the notes ref — `casefile
@@ -119,6 +123,9 @@ cases to know:
   `git clone`; the links are still safe — every `casefile link`
   backs the notes ref up into the casefile repo, `casefile doctor`
   flags the gap after a re-clone, `casefile restore` brings them back.
+- **The casefile repo itself has no remote.** `casefile link` backs
+  the notes ref up *into* the local casefile repo; pushing that repo
+  somewhere safe is the operator's responsibility.
 - **Squash and rebase merges break the link.** Both mint new commits
   server-side, so the noted commit never reaches `main`. Merge
   commits (and fast-forwards) are safe: they keep the original SHAs —
@@ -184,12 +191,14 @@ The first line installs the `casefile` CLI (single-file Python, stdlib
 only) to `~/.local/bin` — nothing else. The second, deliberately
 separate, writes the six skills for the agents it finds — Claude Code
 (`~/.claude/skills/`) and Codex (`~/.codex/skills/`) — overwriting
-those six names. Both scripts are short — read them first. Re-running
-either is the update.
+those six names. Read both before running them. Re-running either is
+the update.
 
 ## First five minutes
 
-Install done — this is the loop, once per task.
+Install done — this is the loop, once per task. Commands use Claude
+Code's `/skill` syntax; in Codex, invoke the same skills as `$plan`,
+`$wrap-up`, and so on.
 
 <details>
 <summary>Home mode — your own repo</summary>
