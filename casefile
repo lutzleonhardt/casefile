@@ -19,6 +19,7 @@ from pathlib import Path
 
 NOTES_REF = "refs/notes/commits"
 KIT_REPO = "lutzleonhardt/casefile"
+VERSION = "0.1.0"
 SKILL_NAMES = ["plan", "start-task", "wrap-up", "review", "commit",
                "why"]
 
@@ -575,6 +576,8 @@ def main():
         prog="casefile",
         description="Link commits to task logs in a private casefile "
                     "(git notes based).")
+    p.add_argument("--version", action="version",
+                   version=f"casefile {VERSION}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("enable",

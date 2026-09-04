@@ -5,6 +5,8 @@
 #
 # Installs the casefile CLI to ~/.local/bin — nothing else. Installing
 # the skills is a deliberate second step: `casefile skills install`.
+# To pin the skills to a release instead of moving main:
+#   casefile skills install --ref v0.1.0
 set -eu
 
 RAW="https://raw.githubusercontent.com/lutzleonhardt/casefile/main"
