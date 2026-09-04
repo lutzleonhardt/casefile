@@ -40,6 +40,21 @@ nowhere else, and it is linked to the commit that made the change.
 | Commit ↔ log link | log committed next to the code | git notes (never pushed to origin) |
 | For | your own projects | client / regulated repos — zero footprint |
 
+In casefile mode the commit ↔ log link lives in **local git notes**:
+the client repo never sees the logs *or* the notes ref — `casefile
+link` pushes its notes backup into the private casefile only. Two
+edge cases to know:
+
+- **A fresh clone has no notes.** Notes do not travel with
+  `git clone`; the links are still safe — every `casefile link`
+  backs the notes ref up into the casefile repo, `casefile doctor`
+  flags the gap after a re-clone, `casefile restore` brings them back.
+- **Squash and rebase merges break the link.** Both mint new commits
+  server-side, so the noted commit never reaches `main`. Merge
+  commits (and fast-forwards) are safe: they keep the original SHAs —
+  and `git blame` attributes lines to those, exactly where the notes
+  hang.
+
 ## Tasks build on the record
 
 The second half of the system is the loop that writes those logs. A spec
