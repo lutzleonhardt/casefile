@@ -1,13 +1,14 @@
 ---
 name: wrap-up
 description: Generate or extend a structured task summary
-  at the end of a completed or blocked task.
+  after implementation, including before independent review,
+  or when a task is blocked.
   For BLOCKED tasks, also evaluates escalation
   triggers and proposes a re-plan.
 ---
 # Task Wrap-Up
 
-The task is finished (or has been declared blocked).
+The implementation is complete (or the task has been declared blocked).
 Write (or extend) the task summary file at
 `docs/work/<scope>/task-log/task-{N}-{slug}.md`.
 
@@ -19,8 +20,11 @@ One task gets exactly one log file. No date in the filename —
 the date lives in git history (commit date) and optionally in
 session markers inside the file.
 
-If the task is NOT finished, do not run this skill — it is
-for completed or blocked tasks only.
+An initial wrap-up before independent review is a normal use of
+this skill: it gives the reviewer the intended behavior, decisions,
+assumptions, and evidence. Do not wait for review to write it.
+If implementation is still in progress and the task is not blocked,
+do not run this skill.
 
 ## Work scope
 
@@ -114,8 +118,11 @@ Wrap-up must happen **before** the task's code changes are
 committed. The intended flow is:
 
 1. Finish the code changes (do NOT commit yet).
-2. Run `/wrap-up N` → scoped summary file is written (or extended).
-3. Run `/commit N` → commits code + summary together.
+2. Run `/wrap-up N` → scoped summary file is written (or extended),
+   ready to inform an independent review.
+3. If reviewing, address the findings and complete the required
+   checks, then update the same log with `/wrap-up N`.
+4. Run `/commit N` → commits code + summary together.
 
 If the task's code has already been committed when
 `/wrap-up N` is invoked, stop and tell the user:
@@ -150,8 +157,8 @@ ls docs/work/<scope>/task-log/task-{N}-*.md 2>/dev/null
 - **No file** — fresh write, normal path.
 - **Exactly one file** — read it, **merge** with the new
   session's findings (see merge rules below). Show the user
-  the proposed merged file and wait for approval before
-  writing.
+  the proposed changes and wait for approval before writing.
+  Show the full merged text on request.
 - **Multiple files** — the filename convention was violated inside
   this work scope. Stop and tell the user; ask which file to extend,
   or let them rename/consolidate manually before continuing.
@@ -159,12 +166,14 @@ ls docs/work/<scope>/task-log/task-{N}-*.md 2>/dev/null
 ## Merge rules (when a log file already exists)
 
 Read the existing file, then integrate the new session's
-output as follows:
+output as follows. Update affected sections and append new evidence;
+do not repeat the whole implementation account after every review.
 
 - **Task** (one-sentence summary): keep existing unless the
   new session materially changes scope; if it does, rewrite
   and flag the change.
-- **Status**: replace with the current status. If the prior
+- **Status**: replace with the current implementation and review
+  status, including any checks still pending. If the prior
   status was BLOCKED and the new status is DONE, drop the
   Escalation Assessment and Re-Plan Proposal sections
   entirely (they are historical noise once unblocked).
@@ -174,9 +183,12 @@ output as follows:
 - **Files Read (Context Only)**: union the lists.
 - **Key Decisions**: append new decisions under a session
   marker (see below). Do not rewrite prior decisions — they
-  are part of the record.
+  are part of the record. When a decision changes, identify which
+  earlier decision it supersedes so the current rule is clear.
 - **Test Evidence**: append new evidence under a session
-  marker. Accumulates across sessions.
+  marker. Accumulates across sessions. Distinguish checks on the
+  final code from earlier runs that subsequent edits have overtaken;
+  do not present an earlier green result as verification of new edits.
 - **Acceptance Coverage**: union the AC IDs. If an AC was
   partial/skipped in the prior session and is now passed, replace
   it. If it was passed and now regresses, surface that explicitly
@@ -219,6 +231,10 @@ One-sentence summary of what was worked on.
 DONE | BLOCKED
 If BLOCKED, explain why and what needs to happen
 to unblock.
+Keep these implementation status values. In accompanying prose,
+state whether independent review is pending, completed, or not
+performed, and which findings or required checks remain open.
+DONE alone does not claim independent review or commit readiness.
 
 ### Files Modified
 Each file with a one-line description of what
@@ -234,6 +250,9 @@ context was used.
 Technical decisions made during this session and
 the reasoning behind them. Include alternatives
 that were considered and rejected.
+Capture user clarifications that explain a behavior, architectural
+boundary, or changed decision. Keep the reusable reason, with a
+concrete example when helpful; do not reproduce the Q&A transcript.
 
 ### Review Focus
 Compact map for human review. Do not repeat the diff.
@@ -383,17 +402,22 @@ in git history. Write the revision as an edit.
 
 Do **not** commit. The commit is `/commit N`'s job.
 
-Tell the user:
+Keep the closing reply short and in the conversation's language:
+link the log, summarize the outcome and any material change from
+an earlier wrap-up, and state outstanding review or verification
+work. The log retains the detailed decisions, Review Focus, test
+evidence, and AC mapping for the next session; do not repeat those
+inventories in the reply.
 
-> Summary is ready at `docs/work/<scope>/task-log/task-{N}-{slug}.md`.
-> When you are done with this task's work, close it out with
-> `/commit {N}` — that reads this log, stages code + summary
-> together, and commits with a message derived from the log's
-> title and status.
->
-> You can run `/wrap-up {N}` again from another session
-> before committing — findings are merged into this same
-> file.
+Include the next step appropriate to the current review status:
+
+- Before review: the log is ready for an independent `/review`.
+- After review: name any remaining work, or point to `/commit N`
+  when ready. If review was not requested, say it has not been
+  performed and point to `/commit N` when the work is otherwise ready.
+- For a later contribution, `/wrap-up N` merges findings into this
+  same log before committing. `/commit N` derives staging and the
+  commit message from the log.
 
 The single-commit rule still matters: the final committed
 summary describes *this exact code state*. `/wrap-up` builds

@@ -53,8 +53,8 @@ via git notes instead of committed files.
   `XC-NN`) and task numbers never appear in source comments, test
   names, fixtures, or any other file of the current repository —
   the plan is invisible from there, so to colleagues they are
-  dangling references. The AC → test mapping lives in the briefing
-  (test plan, step 4) and in the wrap-up log's Acceptance Coverage.
+  dangling references. Prepare the AC → test mapping in step 4;
+  record the verified mapping in the wrap-up log's Acceptance Coverage.
   Home mode is different: the plan is committed next to the code,
   so tagging tests and comments with their AC ID is allowed and
   useful.
@@ -121,9 +121,9 @@ via git notes instead of committed files.
    - **Hard cap:** read at most 2–3 additional logs beyond the
      predecessor. If more look relevant, surface the candidates
      to the user instead of reading all of them.
-   - For each older log you read, note one sentence on *why* it
-     was relevant. If no older logs are relevant, say so
-     explicitly in the briefing.
+   - Use each older log to identify decisions or constraints that
+     affect this task. Surface those consequences in the briefing
+     when relevant; do not list every context source by default.
 
 3. **Check git history.**
    - `git log --oneline -10` — recent commits.
@@ -152,38 +152,17 @@ via git notes instead of committed files.
      existing backup (typical after a re-clone), offer to run
      `casefile restore`.
 
-4. **Produce a Task Briefing** with this structure:
+4. **Prepare the implementation.** Work out the assumptions,
+   risks, file-level plan, rollback approach, and verification
+   before presenting the briefing. Map each planned test or manual
+   check to the task's AC IDs (`T{N}-AC-{NN}`), and identify any
+   coverage gaps. This preparation remains required even though
+   the user-facing briefing is short. Keep the detailed plan in
+   the task context; do not create another briefing document just
+   to hold it. `/wrap-up` records the actual decisions and verified
+   AC coverage for the independent reviewer.
 
-   ### Task N: <title from plan>
-   
-   **Scope:** What this task should accomplish (from plan)
-   
-   **Task-history context:**
-   - Direct predecessor: key decisions, files modified, open
-     issues carried forward
-   - Earlier related task logs consulted, each with a one-line
-     *why*. State explicitly if none were relevant.
-   - Relevant git-history findings (per-file or per-symbol), if any
-   
-   **Current repo state:**
-   - Recent commits
-   - Uncommitted changes (if any)
-   
-   **Proposed approach:**
-   1) Assumptions
-   2) Risks
-   3) File-level plan
-   4) Testable artifact & review guard for the next task
-   5) Test plan — list which AC IDs (`T{N}-AC-{NN}`) each
-      planned test or manual check covers. In casefile mode this
-      mapping stays in the briefing and the wrap-up log — carry
-      the IDs into test names or comments only in home mode (see
-      Casefile mode above).
-   6) Rollback plan
-   
-   Do not write code yet.
-
-   On point (3): if the file-level plan exceeds ~10 files, or the
+   If the file-level plan exceeds ~10 files, or the
    task block's Key Locations turned out wrong or incomplete (the
    real code lives elsewhere, or one location fans out into a
    whole subsystem), stop and propose a split or a plan amendment
@@ -191,28 +170,92 @@ via git notes instead of committed files.
    An accepted deviation must later appear in `/wrap-up`'s
    `Plan deviations`.
 
-   On point (4): what concrete output proves this task worked,
-   and what can the next task treat as "validated"? If there is
+   Identify what concrete output proves this task worked,
+   and what the next task can treat as validated. If there is
    no clear answer, stop and flag back to the user — the task
    is likely too large or too vague. This gate also catches
    oversized tasks from plans written outside `/plan`.
 
    Do not load the plan-end `Cross-Cutting Acceptance` section
    during normal task start. If the requested task block itself
-   references an `XC-NN`, mention that this task contributes to it
-   in the test plan, but keep the task briefing grounded in the
-   task block.
+   references an `XC-NN`, include that contribution in the prepared
+   test plan. Keep preparation and briefing grounded in the task
+   block. Do not write implementation code yet.
 
-5. **Wait for user approval** before proceeding.
+5. **Explain the task to the user.** The briefing should let the
+   user understand the intended behavior and architectural change,
+   then decide whether to proceed. Use the conversation's language
+   unless the user requests another. Start with
+   `Task N: <title from plan>` and use this reading order:
 
-6. **When the task is finished, remind the user to close it out.**
-   After the implementation work is done (DONE or BLOCKED), surface
-   the closing pair — do **not** execute either step automatically,
-   these are user decisions:
+   - **What changes and why:** one or two sentences about the
+     outcome. For a refactor, name the responsibility being moved
+     and what its callers will see.
+   - **How it fits together:** the few participating parts, who
+     owns the relevant state, and who calls or notifies whom —
+     shown in code, as described below. Define unfamiliar or easily
+     confused task-specific terms at first use, ideally as a
+     comment next to the identifier. Use familiar words and
+     concrete verbs; avoid invented labels. Assume technical
+     fluency, without assuming familiarity with this particular
+     system.
+   - **How we will check it:** one or two sentences naming the
+     observable result and the relevant check. Make meaningful
+     verification limits visible, including what a later task
+     still needs to prove.
+   - **Decisions before starting:** for each unresolved question,
+     explain the choice, your recommendation, and its practical
+     consequence. Surface material assumptions, risks, scope
+     deviations, or conflicting local changes here even when the
+     rest of the briefing is short. If no decision is open, say
+     the task is ready to implement.
+
+   Carry the first two parts in code rather than prose: one or two
+   short excerpts, usually 5–15 lines each, whose comments state
+   the essence — a before/after pair, caller and callee,
+   composition and use, or a state change. Prose only connects the
+   excerpts and covers what code cannot show. Use code to explain
+   the mechanism, not to sketch the implementation. Ground it in
+   the actual code or approved plan; label proposed or simplified
+   code accordingly. Omit boilerplate and unrelated types. Skip
+   code only when the change has nothing code-shaped to show, such
+   as a pure configuration or documentation change.
+
+   Keep the prose to a few short sentences per part. Do not append
+   the old technical briefing: omit routine history, commit lists,
+   full file inventories, and AC-by-AC test mappings unless
+   requested or needed for a decision. Answer follow-up questions
+   the same way: a focused annotated excerpt with a sentence of
+   context, never a drafted implementation. Correct
+   misunderstandings explicitly.
+
+6. **Wait for user approval** before proceeding.
+
+7. **When the implementation is finished, explain the result and
+   remind the user to close it out.**
+   Make the report understandable without rereading the briefing.
+   State the outcome and explain the central mechanism of the
+   finished implementation, including work that went as briefed.
+   For code changes, use a few short excerpts of the actual code
+   with comments carrying the explanation; do not invent an
+   implementation to illustrate the result.
+
+   Then explain deviations and unplanned additions, such as a
+   workaround or a restructured call site, with their reasons.
+   Show further code or a before/after pair where it clarifies
+   those differences. Add verification results and open points in
+   a few lines. Focus on behavior and architectural relationships;
+   leave the full file-by-file account to the wrap-up log.
+
+   Then, for DONE and BLOCKED alike, surface the closing pair —
+   do **not** execute either step automatically, these are user
+   decisions:
    - `/wrap-up N` — writes or extends
      `docs/work/<scope>/task-log/task-{N}-{slug}.md`. Safe to run
      multiple times across sessions before committing; findings are
-     merged.
+     merged. An initial wrap-up before independent review provides
+     the reviewer with intent, decisions, and test evidence; state
+     clearly when review is still pending.
    - `/commit N` — stages code + summary from the log and commits
      them together (after showing the plan and waiting for
      confirmation).
