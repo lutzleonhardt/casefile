@@ -209,6 +209,11 @@ can extract exactly one task block without loading siblings:
   context `/start-task` will load alongside the requested task.
   Include an explicit source line near the top, for example
   `Spec: docs/specs/auth-rewrite.md` or `Spec: <issue/chat source>`.
+  If this scope continues an earlier one, add a `Predecessor:` line
+  naming that scope's plan and what it reached. Only the user knows
+  whether an earlier scope is a predecessor — ask when the spec does
+  not say. `/start-task` reads the preamble for every task, so the
+  pointer keeps working long after the scope it came from is cold.
 - **Task heading** — `## Task N` or `## Task N: <title>` on its
   own line. Numbering is sequential inside `docs/work/<scope>/`.
   A different branch scope may also have `Task 1`; that is correct.

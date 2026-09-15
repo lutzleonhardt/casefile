@@ -118,6 +118,15 @@ via git notes instead of committed files.
      `rg -n 'BuildToolsPolicy|build-tools\.ts' docs/work/<scope>/task-log/`
      Avoid generic terms (`service`, `config`, `handler`) — they
      match everywhere and produce noise.
+     If the preamble carries a `Predecessor:` line, that scope's
+     `task-log/` belongs to the same search. The line is the user's
+     judgment that the two scopes are connected; do not widen the
+     search to unrelated scopes on your own.
+   - **One line, on demand.** When a single line's *reason* would
+     change your approach, resolve it instead of searching for it:
+     `casefile why <file>:<line>` prints the commit and its task
+     log, across scopes and in both modes. A targeted lookup, not
+     a survey.
    - **Hard cap:** read at most 2–3 additional logs beyond the
      predecessor. If more look relevant, surface the candidates
      to the user instead of reading all of them.
