@@ -1,0 +1,18 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: python syntax
+        run: python3 -c "compile(open('casefile').read(),'casefile','exec')"
+      - name: shell syntax
+        run: |
+          for f in install.sh tools/check-canon.sh tests/roundtrip.sh; do
+            sh -n "$f"
+          done
+      - name: canon drift
+        run: sh tools/check-canon.sh
+      - name: round-trip tests
+        run: sh tests/roundtrip.sh
