@@ -189,6 +189,14 @@ For each task, produce:
     mention the `XC-NN` ID here; `/start-task` will not load the
     plan-end cross-cutting section by default.
   Optional only for pure mechanical refactors.
+- **Quick functional check** — at most two sentences telling the
+  user what to do and what visible result to expect after this task,
+  without depending on later tasks. For internal changes, a focused
+  test command is enough. The exact command may be settled during
+  implementation; do not invent an executable command in the plan.
+  Reuse existing tools; build no extra UI or infrastructure solely
+  for this check. It supplements acceptance criteria and does not
+  replace independent review or establish complete coverage.
 - **Key Locations** — files, fully qualified classes/methods
   to be touched. Resolved against the code (workflow step 5),
   never unchecked guesses.

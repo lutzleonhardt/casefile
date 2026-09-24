@@ -208,6 +208,12 @@ session even if the register write is skipped.
 - **Casefile mode:** write the register only under the `doc root` returned
   by `casefile root -v`, in the private casefile repository. Work artifacts
   never enter the current repository.
+- **Home mode — write only into an existing doc root.** If the
+  `<doc-root>/` directory does not already exist, the repo does not use
+  the work-artifact scheme (typically an upstream or shared repo where a
+  stray register would end up in someone's PR on the next `git add .`).
+  Do not create the directory; skip the write and rely on the printed
+  Topf B.
 - If the doc root could not be resolved, skip the write and rely on the
   printed Topf B.
 
