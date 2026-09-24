@@ -120,8 +120,10 @@ committed. The intended flow is:
 1. Finish the code changes (do NOT commit yet).
 2. Run `/wrap-up N` → scoped summary file is written (or extended),
    ready to inform an independent review.
-3. If reviewing, address the findings and complete the required
-   checks, then update the same log with `/wrap-up N`.
+3. If reviewing, triage the findings with the user, address the
+   approved ones, record the declined ones (see Key Decisions),
+   complete the required checks, then update the same log with
+   `/wrap-up N`.
 4. Run `/commit N` → commits code + summary together.
 
 If the task's code has already been committed when
@@ -253,6 +255,14 @@ that were considered and rejected.
 Capture user clarifications that explain a behavior, architectural
 boundary, or changed decision. Keep the reusable reason, with a
 concrete example when helpful; do not reproduce the Q&A transcript.
+
+A review finding the user declined is a decision too. Record it as
+`Declined finding: <source> — <finding> — <why: not reachable here /
+too unlikely / fix cost>`. Never in Open Issues: an accepted risk is
+closed, not pending. The log entry is the provenance; the reason
+itself lives where the next agent will read it — as a one-line
+comment at the code spot when the decline concerns one, or as one
+line in the project's CLAUDE.md when it rests on an app-wide property.
 
 ### Review Focus
 Compact map for human review. Do not repeat the diff.

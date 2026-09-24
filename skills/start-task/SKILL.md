@@ -62,6 +62,29 @@ via git notes instead of committed files.
   state; `casefile why <file>:<line>` resolves a blamed line to its
   task log.
 
+## Workflow boundary
+
+Approval to implement authorizes implementation and task-local verification
+(tests, builds, and the quick functional check), not an independent review
+or additional workflow gates.
+
+After implementation, report the result and offer `/wrap-up N`. Do not
+automatically invoke `/review`, start a reviewer subagent, run `/cs`, or
+perform wrap-up or commit. Review delegation is subject to this same rule,
+regardless of whether it uses a skill or a built-in agent tool.
+
+The normal review handoff is:
+implementation → user-requested `/wrap-up N` → user-requested
+`/review quick` in a clean session, using the task log as intent context.
+A summary supplied by the implementing agent does not replace that log.
+The user may explicitly request a different sequence.
+
+Review findings — from `/review`, Codex, or any other reviewer — are
+proposals to the user, not tasks. Present each with a recommendation
+(fix / decline / follow-up) and the trigger path in this app; implement
+only what the user approves, however important a finding looks.
+`/wrap-up N` records declined findings.
+
 ## Your workflow:
 
 1. **Load the plan preamble + only the requested task block.**
@@ -92,10 +115,15 @@ via git notes instead of committed files.
      awk '/^## Task [0-9]/{exit} {print}' <plan-file>
      awk -v n=N '/^## Task [0-9]/ { if (inblock) exit; if ($0 ~ "^## Task " n "($|[: ])") inblock=1 } inblock' <plan-file>
      ```
-   - Do NOT read the spec (`docs/specs/`). If the task block
-     references the spec or a sibling task, flag this back to
-     the user before proceeding — the plan violates `/plan`'s
-     self-containment rule and should be amended first.
+   - Do not read the spec or sibling plan tasks during task start.
+     References to them may be supplementary context and are not, by
+     themselves, a reason to stop or amend the plan.
+
+     Continue when the requested task block and preamble provide enough
+     information to prepare implementation and verification. Stop and
+     ask for a plan amendment only when a concrete requirement or decision
+     needed for this task is missing and must be obtained from the spec
+     or a sibling task. Name the missing information, not merely the reference.
 
 2. **Read task-history context.** Tasks build on each other, so
    the direct predecessor is the fast path — but earlier tasks can
@@ -185,6 +213,13 @@ via git notes instead of committed files.
    is likely too large or too vague. This gate also catches
    oversized tasks from plans written outside `/plan`.
 
+   Include the task's quick functional check in the implementation
+   scope: a simple user action and its expected visible result,
+   usable without later tasks. If an older plan lacks it, propose
+   it in the briefing. Reuse existing tools; do not build extra UI
+   or infrastructure solely for the check. It supplements AC
+   verification and does not replace independent review.
+
    Do not load the plan-end `Cross-Cutting Acceptance` section
    during normal task start. If the requested task block itself
    references an `XC-NN`, include that contribution in the prepared
@@ -208,10 +243,11 @@ via git notes instead of committed files.
      concrete verbs; avoid invented labels. Assume technical
      fluency, without assuming familiarity with this particular
      system.
-   - **How we will check it:** one or two sentences naming the
-     observable result and the relevant check. Make meaningful
-     verification limits visible, including what a later task
-     still needs to prove.
+   - **Quick functional check:** at most two sentences telling
+     the user how to try the task's result and what to expect.
+     For internal changes, a focused test command is enough.
+     Make meaningful verification limits visible; this is not
+     evidence of complete coverage.
    - **Decisions before starting:** for each unresolved question,
      explain the choice, your recommendation, and its practical
      consequence. Surface material assumptions, risks, scope
@@ -256,6 +292,12 @@ via git notes instead of committed files.
    a few lines. Focus on behavior and architectural relationships;
    leave the full file-by-file account to the wrap-up log.
 
+   Include **Quick functional check** in at most two sentences:
+   the actual copyable command or concrete UI steps and the expected
+   visible result. No unresolved placeholders or mere "tests pass".
+   Say whether you ran it; if blocked or unavailable, state the
+   limitation rather than implying the check succeeded.
+
    Then, for DONE and BLOCKED alike, surface the closing pair —
    do **not** execute either step automatically, these are user
    decisions:
@@ -271,7 +313,7 @@ via git notes instead of committed files.
    - Optionally `/review` between the two — default is quick mode
      (per-task hotspots + blind spots); use `/review full` before
      a PR, `/review coverage` for large diffs. A second `/wrap-up N`
-     can absorb the review findings before `/commit N` runs.
+     can absorb the triaged review findings before `/commit N` runs.
 
    If the user explicitly declared the task BLOCKED instead of
    DONE, still point at `/wrap-up N` — it handles the BLOCKED case

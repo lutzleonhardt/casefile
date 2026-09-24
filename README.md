@@ -216,7 +216,7 @@ the log.
 deeper pre-PR pass, `/review coverage` maps a large diff into an
 ordered walkthrough. It reads best from a session that did not write
 the code: run it in a fresh agent session and hand the findings back
-to the implementing session to verify and fix.
+to the implementing session to assess and, where you approve, fix.
 
 </details>
 

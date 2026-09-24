@@ -120,6 +120,9 @@ detection.
    - Treat `Review Focus` as claims to verify against the code and
      diff, not as truth. False or incomplete claims become Hotspots.
      Missing, generic, or non-actionable entries become Blind Spots.
+   - Search every log in the scope for declined review findings:
+     `rg -n 'Declined finding:' docs/work/<scope>/task-log/`. Do not
+     re-raise one without new evidence; if you do, say what changed.
    - Cross-check `Plan deviations` in both directions. Extract just
      the task's `## Task N` block from `docs/work/<scope>/plan.md`
      (not the sibling tasks) and (a) verify each declared deviation
@@ -193,12 +196,16 @@ If the large-diff heuristic triggered, start with the one-line
 `Size note:` before the sections below.
 
 ### Hotspots
-Ranked by risk. Each hotspot has:
+Ranked by risk. An empty list is a valid, good outcome — do not
+construct edge cases to fill it. Each hotspot has:
 - Risk level: [HIGH] [MEDIUM] [LOW]
 - AC ID it touches (`T{N}-AC-{NN}` or `XC-NN`), or `no AC` if
   the finding is outside the stated acceptance surface
 - File and line reference
-- What the concern is
+- What the concern is, and the damage if it occurs
+- Trigger: a concrete path in *this* app that reaches it, or the
+  literal word `theoretical`
+- Fix cost: one line — roughly how much complexity the fix adds
 - What to check or consider
 
 ### Blind Spots
@@ -310,7 +317,7 @@ If no such restructuring exists, say `Not needed`.
 ### 5. Hotspot Details
 For each risk flag in the Coverage Path, provide the same details as
 quick-mode Hotspots: severity, AC ID or `no AC`, file/line reference,
-concern, and what to check.
+concern and damage, trigger, fix cost, and what to check.
 
 ### 6. Blind Spots / Residual Risk
 List only risks that remain after the coverage pass, such as files that
