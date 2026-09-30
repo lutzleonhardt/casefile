@@ -150,6 +150,18 @@ only what the user approves, however important a finding looks.
      `task-log/` belongs to the same search. The line is the user's
      judgment that the two scopes are connected; do not widen the
      search to unrelated scopes on your own.
+   - **Squashed scope — summary before search.** If a scope in this
+     search holds a `task-log/squash-<sha>.md` (written by
+     `/finalize-squash` after a squash merge), start there instead of
+     with `rg`. Read only its key decisions: those that still apply
+     and those marked superseded. They name the rules the merged code
+     still follows and the logs whose content is history — a log
+     found by `rg` alone may describe names and mechanisms that no
+     longer exist. Pick further logs by topic from its source index
+     (look entries up, do not read the index through), then use `rg`
+     for concrete symbols the index is too coarse for. Do not read
+     the summary as a whole; its decisions part counts as one log
+     toward the cap below.
    - **One line, on demand.** When a single line's *reason* would
      change your approach, resolve it instead of searching for it:
      `casefile why <file>:<line>` prints the commit and its task
@@ -183,7 +195,9 @@ only what the user approves, however important a finding looks.
      referenced log from the casefile. This channel finds logs across
      branch scopes (stacked branches), which the directory-scoped
      search above cannot. Logs read this way count toward the
-     2–3 extra-log cap.
+     2–3 extra-log cap. A note that names a `squash-<sha>.md` leads
+     to a squash summary: read it by the squashed-scope rule of
+     step 2, not as a whole.
    - **Casefile mode — notes restore check (once per session):** run
      `casefile doctor`. If it reports missing local notes with an
      existing backup (typical after a re-clone), offer to run
