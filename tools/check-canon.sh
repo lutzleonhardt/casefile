@@ -5,7 +5,7 @@
 set -eu
 cd "$(git rev-parse --show-toplevel)"
 fail=0
-for s in plan start-task wrap-up review commit; do
+for s in plan start-task wrap-up review commit finalize-squash; do
   f="skills/$s/SKILL.md"
   if python3 -c 'import sys
 canon = open(sys.argv[1]).read().strip()

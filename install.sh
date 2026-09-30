@@ -22,4 +22,4 @@ case ":$PATH:" in
   *) echo "note: $BIN is not on your PATH" ;;
 esac
 
-echo "next: casefile skills install   # writes the six skills for the agents found (~/.claude, ~/.codex)"
+echo "next: casefile skills install   # writes the kit's skills for the agents found (~/.claude, ~/.codex)"

@@ -78,6 +78,16 @@ If `cs` is not on PATH, or status reports signed-out and no
 Do not attempt analysis without a working license — every `cs review`
 would fail the online license check.
 
+## CLI invocation and existing approvals
+
+Run `cs auth status`, `cs review`, and `cs delta` as direct shell commands,
+without output redirection (`>`, `>>`, `<`) or a shell/Python script wrapper.
+Codex's command-prefix allow rules can authorize the direct invocation;
+redirection makes it evaluate the whole shell wrapper instead, so the `cs`
+prefix no longer matches. Capture JSON from the tool's returned stdout. If
+results need to be saved, write them in a separate local file operation.
+See [Codex's shell-wrapper rules](https://learn.chatgpt.com/docs/agent-configuration/rules#when-codex-does-not-split-the-script).
+
 ## Step 1 — Determine the change scope (baseline: working tree)
 
 Changed files = tracked modifications since HEAD, plus new untracked

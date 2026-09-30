@@ -102,4 +102,39 @@ echo "$out" | grep -q 'Home-mode log travels' \
   || fail 'home mode: co-committed log content not shown'
 pass 'home mode co-committed channel'
 
+# ── fixture 3: link a named summary from its original feature scope ──
+cd "$S/repo"
+git checkout -qb feat/squash-demo
+printf 'squashed feature\n' > squashed.txt
+git add squashed.txt
+git commit -qm 'implement feature'
+git checkout -q main
+git merge --squash feat/squash-demo >/dev/null
+git commit -qm 'squash feature'
+squash_sha="$(git rev-parse HEAD)"
+git checkout -q feat/squash-demo
+
+squash_logs="$(cf root)/task-log"
+mkdir -p "$squash_logs"
+printf '### Task\nSummary of the squashed feature.\n' \
+  > "$squash_logs/squash-$squash_sha.md"
+cf link "squash-$squash_sha" "$squash_sha" --no-session >/dev/null
+casefile_head="$(git -C "$HOME/casefile" rev-parse HEAD)"
+cf link "squash-$squash_sha" "$squash_sha" --no-session >/dev/null
+[ "$(git -C "$HOME/casefile" rev-parse HEAD)" = "$casefile_head" ] \
+  || fail 'squash: retry created another casefile commit'
+squash_pointer="tasklog: acme/demo/work/squash-demo/task-log/squash-$squash_sha.md"
+[ "$(git notes show "$squash_sha" | grep -Fxc "$squash_pointer")" = 1 ] \
+  || fail 'squash: expected exactly one pointer to the feature-scope summary'
+out="$(cf doctor)"
+echo "$out" | grep -q 'backup: in sync' \
+  || fail 'squash: notes backup is not in sync'
+git checkout -q main
+out="$(cf why squashed.txt:1)"
+echo "$out" | grep -Fq "$squash_pointer" \
+  || fail 'squash: why on main did not resolve the feature-scope summary'
+echo "$out" | grep -q 'Summary of the squashed feature' \
+  || fail 'squash: why did not read the summary content'
+pass 'squash: named log + explicit SHA from feature scope, retry, backup, why on main'
+
 echo 'all tests passed'

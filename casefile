@@ -4,8 +4,9 @@
 Links customer-repo commits to task logs in a private casefile repo via
 git notes. stdlib only, single file, works on Linux/macOS/Windows.
 
-Companion of the /plan, /start-task, /wrap-up, /commit, /review and
-/why skills: the skills carry the judgment, this tool the plumbing.
+Companion of the /plan, /start-task, /wrap-up, /commit, /review,
+/finalize-squash and /why skills: the skills carry the judgment,
+this tool the plumbing.
 `casefile skills` installs or updates those skills; the kit's install.sh
 bootstraps both and is safe to re-run as the updater.
 """
@@ -21,7 +22,7 @@ NOTES_REF = "refs/notes/commits"
 KIT_REPO = "lutzleonhardt/casefile"
 VERSION = "0.1.0"
 SKILL_NAMES = ["plan", "start-task", "wrap-up", "review", "commit",
-               "why"]
+               "finalize-squash", "why"]
 
 
 def die(msg, code=1):

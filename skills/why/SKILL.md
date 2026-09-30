@@ -19,7 +19,7 @@ speculate from the code — pull the case file.
 
 ## Workflow
 
-1. **Run the CLI — this is the whole retrieval:**
+1. **Run the CLI to retrieve the linked log:**
 
    ```
    casefile why FILE:LINE
@@ -35,6 +35,13 @@ speculate from the code — pull the case file.
    `### Key Decisions` (what was decided, why, and what was
    rejected), `### Root Cause` (fix-lane logs), or the one-line
    `### Task` summary.
+
+   If the linked log is a squash summary and does not answer the
+   question, select the relevant source log from its index. Resolve
+   relative links from the summary's directory and read only the
+   logs needed for this question. Cite the additional hop:
+   `FILE:LINE → squash → summary → source log`, including the source
+   section. If the source is missing or inconclusive, state that limit.
 
 3. **Mechanical blame hit?** If the blamed commit is clearly
    formatting, a rename, or a sweep, the reason lives deeper:

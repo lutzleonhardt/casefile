@@ -2,7 +2,7 @@
 
 **AI-assisted development that `git blame` can explain.**
 
-Casefile combines six agent skills with a small Python CLI. The
+Casefile combines agent skills with a small Python CLI. The
 skills record why a change was made; `casefile why FILE:LINE`
 retrieves that record later through `git blame`.
 
@@ -117,7 +117,7 @@ Notes:
 The [same commit on GitHub](https://github.com/native-federation/native-federation-website/commit/4bf926eb9a768d08ec2f12276b4b8800bbf824a7)
 shows no note, and the repo carries no work directory at all. Unlike
 the demo at the top, this one is deliberately *not* reproducible from
-a clone: the provenance never left the operator's machine. Two edge
+a clone: the provenance never left the operator's machine. Three edge
 cases to know:
 
 - **A fresh clone has no notes.** Notes do not travel with
@@ -127,11 +127,15 @@ cases to know:
 - **The casefile repo itself has no remote.** `casefile link` backs
   the notes ref up *into* the local casefile repo; pushing that repo
   somewhere safe is the operator's responsibility.
-- **Squash and rebase merges break the link.** Both mint new commits
-  server-side, so the noted commit never reaches `main`. Merge
-  commits (and fast-forwards) are safe: they keep the original SHAs —
-  and `git blame` attributes lines to those, exactly where the notes
-  hang.
+- **Squash merges need a new link in casefile mode.** After a pull or
+  merge request is squash-merged, stay on the original feature branch
+  and run `/finalize-squash <sha>`.
+  The skill writes a summary with an index of the scope's logs, links
+  it to the supplied squash commit, and backs up the note. Server-side
+  rebase merges also mint new commits and are not covered by this
+  workflow. Merge commits and fast-forwards retain the original SHAs
+  and their links. In home mode, task-log files included in the squash
+  remain available through the co-committed channel.
 
 ## Tasks build on the record
 
@@ -190,9 +194,9 @@ casefile skills install
 
 The first line installs the `casefile` CLI (single-file Python, stdlib
 only) to `~/.local/bin` and nothing else. The second step is separate
-on purpose: it writes the six skills for the agents it finds, Claude
+on purpose: it writes the kit's skills for the agents it finds, Claude
 Code (`~/.claude/skills/`) and Codex (`~/.codex/skills/`), overwriting
-those six names. Read both before running them. Re-running either is
+the bundled names. Read both before running them. Re-running either is
 the update.
 
 ## First five minutes
@@ -230,6 +234,27 @@ ends with `casefile link`, which attaches the git note, commits the
 casefile repo, and backs up the notes ref. `casefile doctor` checks
 the setup; `casefile disable` turns it off.
 
+**After a pull request (PR) or merge request (MR) is squash-merged,
+run `/finalize-squash` once for the completed scope.** Keep the original
+local feature branch checked out and pass the hash of the resulting
+squash commit on the target branch, such as `main` or `develop`:
+
+```text
+/finalize-squash <squash-commit-hash>
+```
+
+In Codex, use `$finalize-squash <squash-commit-hash>`. Keep the local
+feature branch until finalization succeeds; it identifies the scope.
+
+This one invocation reads the scope's logs and planning, writes
+`task-log/squash-<full-sha>.md`, and links it to the supplied commit
+through a Git Note with a backup in the private casefile. The agent
+runs the CLI steps for you. No GitHub, GitLab, or Azure DevOps
+integration is required; only the resulting commit hash is needed.
+Existing task logs and session archives stay in their original scope.
+Home mode does not need this step: task-log files included in the
+squash remain in the source repository.
+
 </details>
 
 ## The skills
@@ -241,6 +266,7 @@ the setup; `casefile disable` turns it off.
 | `/wrap-up N` | Write or extend the task log; merges across sessions; records plan deviations; fix lane for unplanned work; handles BLOCKED with a re-plan. |
 | `/review` | Guided review brief — quick per task, full before a PR, coverage for large diffs. Cross-checks the log's claims. |
 | `/commit N` | Stage code + log from the log's own record, show the plan, commit after confirmation; casefile mode links via git notes. |
+| `/finalize-squash SHA` | Casefile mode: run after a PR/MR squash merge, from the original feature branch. Writes a summary with a log index, links the document to the supplied squash commit, and backs up the Git Note. |
 | `/why FILE:LINE` | The demo above, as a skill: blame → commit → log → answer, with the evidence chain cited. |
 
 ## Evidence
