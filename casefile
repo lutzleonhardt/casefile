@@ -82,16 +82,20 @@ class Ctx:
             die("not inside a git repository")
         self._scope = None
         self.project = git_config("casefile.project")
+        root = git_config("casefile.root") or str(Path.home() / "casefile")
+        self.casefile_root = Path(root).expanduser()
         if self.project:
             self.mode = "casefile"
-            root = git_config("casefile.root") or str(Path.home() / "casefile")
-            self.casefile_root = Path(root).expanduser()
+            self.project_source = "git config casefile.project"
             self.doc_root = self.casefile_root / self.project
             self.project_slug = self.project.replace("/", "-")
             self.backup_ref = f"refs/notes/{self.project_slug}"
         else:
+            # Home mode keeps plan and logs in the repo; the casefile holds
+            # only the session archive, under a project folder derived from
+            # the origin remote (derive_home_project).
             self.mode = "home"
-            self.casefile_root = None
+            self.project, self.project_source = derive_home_project()
             self.doc_root = Path("docs")
 
     @property
@@ -103,6 +107,14 @@ class Ctx:
     @property
     def work_root(self):
         return self.doc_root / "work" / self.scope
+
+    @property
+    def archive_root(self):
+        """Where `link` and `archive` copy session transcripts. In casefile
+        mode this is work_root/sessions; in home mode it is the only path
+        of this repo inside the casefile."""
+        return (self.casefile_root / self.project / "work" / self.scope
+                / "sessions")
 
     def require_casefile(self):
         if self.mode != "casefile":
@@ -165,6 +177,10 @@ def cmd_root(ctx, args):
         print(f"scope:     {ctx.scope}")
         print(f"doc root:  {ctx.doc_root}")
         print(f"work root: {ctx.work_root}")
+        print(f"archive:   {ctx.archive_root}")
+        if ctx.mode == "home":
+            print("           (home mode: transcripts only, via casefile "
+                  "archive; plans and logs stay in work root)")
     else:
         print(ctx.work_root)
 
@@ -267,13 +283,14 @@ def resolve_log(log_dir, ident):
 
 def derive_home_project():
     """Project identity for home mode: the origin remote's last two
-    path segments (trailing .git stripped), else home/<dirname>."""
+    path segments (trailing .git stripped), else home/<dirname>.
+    Returns (project, source) so doctor can show where the name came from."""
     rc, url = git("remote", "get-url", "origin", check=False)
     if rc == 0 and url:
         m = re.search(r"[:/]([^/:]+/[^/]+?)(?:\.git)?/?$", url)
         if m:
-            return m.group(1)
-    return f"home/{Path.cwd().resolve().name}"
+            return m.group(1), f"origin {url}"
+    return f"home/{Path.cwd().resolve().name}", "no origin remote: directory name"
 
 
 def copy_sessions(ctx, n, log_path, dest=None, include_current=True):
@@ -365,24 +382,17 @@ def cmd_archive(ctx, args):
     the casefile as a personal archive."""
     if ctx.mode == "casefile":
         ctx.require_casefile()
-        casefile_root, project = ctx.casefile_root, ctx.project
-    else:
-        root = git_config("casefile.root") or str(Path.home() / "casefile")
-        casefile_root = Path(root).expanduser()
-        if not (casefile_root / ".git").exists():
-            die(f"no casefile repo at {casefile_root} — transcripts not "
-                f"archived (git init {casefile_root} to create one)")
-        project = derive_home_project()
+    elif not (ctx.casefile_root / ".git").exists():
+        die(f"no casefile repo at {ctx.casefile_root} — transcripts not "
+            f"archived (git init {ctx.casefile_root} to create one)")
     log_path, item = resolve_log(ctx.work_root / "task-log", args.n)
-    dest = (casefile_root / project / "work" / ctx.scope
-            / "sessions" / item)
-    copy_sessions(ctx, args.n, log_path, dest=dest,
+    copy_sessions(ctx, args.n, log_path, dest=ctx.archive_root / item,
                   include_current=not args.no_current)
-    vr = str(casefile_root)
-    git("-C", vr, "add", project)
+    vr = str(ctx.casefile_root)
+    git("-C", vr, "add", ctx.project)
     rc, _ = git("-C", vr, "diff", "--cached", "--quiet", check=False)
     if rc != 0:
-        msg = f"sessions: {item} ({project})"
+        msg = f"sessions: {item} ({ctx.project})"
         git("-C", vr, "commit", "-m", msg)
         print(f"casefile committed: {msg}")
     else:
@@ -535,6 +545,14 @@ def cmd_doctor(ctx, args):
     print(f"mode: {ctx.mode} · scope: {ctx.scope}")
     if ctx.mode == "home":
         item("work root", ctx.work_root.exists(), str(ctx.work_root))
+        print(f"   project: {ctx.project} (from {ctx.project_source})")
+        casefile_ok = (ctx.casefile_root / ".git").exists()
+        item("casefile repo", casefile_ok,
+             str(ctx.casefile_root) if casefile_ok else
+             f"{ctx.casefile_root} missing — git init it before "
+             f"casefile archive")
+        print(f"   archive: {ctx.archive_root}"
+              + ("" if ctx.archive_root.exists() else " (nothing archived yet)"))
         sys.exit(0 if ok else 1)
     print(f"project: {ctx.project}")
     casefile_ok = (ctx.casefile_root / ".git").exists()

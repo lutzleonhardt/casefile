@@ -38,7 +38,8 @@ output; do not re-derive any of them, and let the CLI's own errors
 (detached HEAD, missing casefile repo) stop the run. If `casefile` is not
 on PATH, stop: the kit ships with its CLI — reinstall it instead of
 deriving paths by hand. In casefile mode, work artifacts never enter
-the current repository.
+the current repository. `archive` is where `casefile archive` copies
+session transcripts; it is never a target for plans, logs, or docs.
 
 If a branch is renamed, rename the matching `<work-root>` directory
 or keep using the old branch name. Legacy layouts (`docs/plans/`, a

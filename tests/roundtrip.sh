@@ -102,6 +102,27 @@ echo "$out" | grep -q 'Home-mode log travels' \
   || fail 'home mode: co-committed log content not shown'
 pass 'home mode co-committed channel'
 
+# root -v and doctor name the archive folder: derived from origin,
+# else home/<dirname> — the roots themselves stay in the repo
+out="$(cf root -v)"
+echo "$out" | grep -q '^mode:      home' \
+  || fail 'home mode: root -v must report home mode'
+echo "$out" | grep -q '^work root: docs/work/main' \
+  || fail 'home mode: root -v must keep the work root in the repo'
+echo "$out" | grep -Fq "archive:   $HOME/casefile/home/repo2/work/main/sessions" \
+  || fail "home mode: root -v must fall back to home/<dirname>: $out"
+echo "$out" | grep -q 'logs stay in work root' \
+  || fail 'home mode: root -v must mark the archive as transcripts only'
+git remote add origin git@github.com:acme/repo2.git
+cf root -v | grep -Fq "archive:   $HOME/casefile/acme/repo2/work/main/sessions" \
+  || fail 'home mode: root -v must derive the archive folder from origin'
+out="$(cf doctor)" || fail "home mode: doctor failed: $out"
+echo "$out" | grep -q 'project: acme/repo2 (from origin' \
+  || fail "home mode: doctor must name origin as the project source: $out"
+echo "$out" | grep -Fq "archive: $HOME/casefile/acme/repo2/work/main/sessions" \
+  || fail 'home mode: doctor must print the archive folder'
+pass 'home mode: root -v and doctor expose the derived archive folder'
+
 # ── fixture 3: link a named summary from its original feature scope ──
 cd "$S/repo"
 git checkout -qb feat/squash-demo
