@@ -201,7 +201,7 @@ def cmd_why(ctx, args):
             die("blame hit the shallow-clone boundary — history is "
                 "truncated here; run: git fetch --unshallow")
     sha = raw.lstrip("^")
-    if sha.startswith("0" * 8):
+    if re.fullmatch(r"0+", sha):  # abbreviation length varies by git version
         die("line is uncommitted — nothing to link yet")
     _, subject = git("log", "-1", "--format=%s", sha)
     print(f"{file}:{line} -> {sha} ({subject})")
