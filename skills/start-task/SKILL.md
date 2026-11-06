@@ -131,12 +131,18 @@ only what the user approves, however important a finding looks.
    matter too. Reading older task logs is *history retrieval*, not
    a violation of task isolation: the isolation rule applies to
    sibling **plan** tasks, not to past **logs**.
-   - **Direct predecessor (fast path):** read
-     `docs/work/<scope>/task-log/task-{N-1}-*.md`. Use the
-     deterministic numbered path — `ls -t` is unreliable, because
-     a re-run of `/wrap-up M` for an older task can give its file a
-     newer mtime than the real predecessor.
-   - If this is Task 1, skip the predecessor read.
+   - **Direct predecessor (fast path):** the task whose heading
+     immediately precedes `## Task N` in the plan's heading order
+     (`grep -n '^## Task' <plan-file>` lists it) — so 3.2 → 3.1,
+     4 → 3.2, and 9 → 6.5 when slices 6.1–6.5 sit between 5 and 9.
+     Read its log, `docs/work/<scope>/task-log/task-{M}-*.md`.
+     Resolve `M` from the heading list, never from `N-1` arithmetic
+     (point tasks and folded numbers break it) and never from
+     `ls -t`, because a re-run of `/wrap-up M` for an older task can
+     give its file a newer mtime than the real predecessor. If the
+     predecessor has no log yet, take the nearest earlier heading
+     that has one.
+   - If no heading precedes `## Task N`, skip the predecessor read.
    - **Bounded relevance search across older logs.** Extract
      concrete terms from the requested task block — file paths,
      class/function names, AC IDs, domain terms, referenced
