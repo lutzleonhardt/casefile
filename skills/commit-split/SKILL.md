@@ -286,6 +286,11 @@ never rewritten. In casefile mode the notes follow the rewrite
 (`notes.rewriteRef` is set by `casefile enable`); run
 `casefile backup` afterwards and confirm with `casefile doctor`.
 
+The session archive taken in step 6 predates every later round.
+`/wrap-up N` run after a split re-archives on its own, so the closing
+sequence of a split task is: code fixups, `/wrap-up N` (merges the
+log and archives), the log fixup into slice 1.
+
 ## What this skill does not do
 
 - It does not derive a cut without the task log, and it does not

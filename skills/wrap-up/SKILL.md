@@ -132,10 +132,13 @@ committed. The intended flow is:
 **Split-series exception:** if the task already landed as a series
 (`git log --oneline --grep='^task-N:'` lists its commits and the log
 is in HEAD's tree), do not stop. Later fixups and review rounds are
-expected there. Merge into the log as usual and tell the user that
-the log change is folded into the first slice with a fixup, as
-`/commit-split`'s "After the split" describes — after the code
-fixups, so the log describes the final state.
+expected there. Merge into the log as usual, then run
+`casefile archive N` right away: the archive taken at split time
+predates this session, and the command is idempotent — it copies
+what is missing and commits the casefile only on changes. Tell the
+user that the log change is folded into the first slice with a
+fixup, as `/commit-split`'s "After the split" describes — after the
+code fixups, so the log describes the final state.
 
 Otherwise, if the task's code has already been committed when
 `/wrap-up N` is invoked, stop and tell the user:
