@@ -195,6 +195,31 @@ forward, but nothing routes from a line of code back to the decision
 behind it, or hands one task's discoveries to the next. One log per
 task, linked to its commit, does both.
 
+## One task, as it actually runs
+
+The diagram hides the rhythm that makes the log worth writing: the
+log is written *before* the review, because it is the reviewer's
+briefing. Nothing is committed until the end; the unstaged working
+tree is the review surface.
+
+1. `/start-task N` — read the briefing, approve it, then let the
+   session implement and verify.
+2. `/wrap-up N` right away — intent, decisions and plan deviations
+   are recorded while they are fresh.
+3. Review in parallel, in other sessions or with another agent (the
+   kit installs its skills for Codex as well): `/review quick` reads
+   the diff *and* the log, so it checks the code against its stated
+   intent, not only against itself. Add the project's other gates
+   here — a code-health tool, a full test run.
+4. Hand the findings back to the implementing session: weigh them,
+   fix what deserves fixing, decline the rest with a reason. The
+   author reads along and asks their own questions in the same
+   session.
+5. `/wrap-up N` again — the merge records findings, fixes and
+   declined proposals in the one log.
+6. `/commit N`, or `/commit-split N` when the task reads better as a
+   short series of commits.
+
 ## Install
 
 ```sh
