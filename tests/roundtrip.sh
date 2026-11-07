@@ -102,6 +102,26 @@ echo "$out" | grep -q 'Home-mode log travels' \
   || fail 'home mode: co-committed log content not shown'
 pass 'home mode co-committed channel'
 
+# a task that landed as a series (/commit-split): the log travels with
+# the first commit only; a later commit resolves by its task-N subject
+# against the log in its own tree
+printf 'more code\n' > code2.txt
+git add code2.txt
+git commit -qm 'task-1: y, second commit of the series'
+out="$(cf why code2.txt:1)" \
+  || fail 'home mode: why failed on a later commit of a split task'
+echo "$out" | grep -q 'by subject convention' \
+  || fail 'home mode: expected the subject-convention channel marker'
+echo "$out" | grep -q 'Home-mode log travels' \
+  || fail 'home mode: subject-convention channel did not show the log'
+printf 'orphan\n' > orphan.txt
+git add orphan.txt
+git commit -qm 'chore: no task, no log'
+st=0; out="$(cf why orphan.txt:1 2>&1)" || st=$?
+[ "$st" -eq 2 ] \
+  || fail 'home mode: a commit without task subject or log must exit 2'
+pass 'home mode: split-series commits resolve by subject convention'
+
 # root -v and doctor name the archive folder: derived from origin,
 # else home/<dirname> — the roots themselves stay in the repo
 out="$(cf root -v)"

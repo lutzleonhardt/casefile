@@ -125,9 +125,19 @@ committed. The intended flow is:
    approved ones, record the declined ones (see Key Decisions),
    complete the required checks, then update the same log with
    `/wrap-up N`.
-4. Run `/commit N` → commits code + summary together.
+4. Run `/commit N` → commits code + summary together — or
+   `/commit-split N`, which lands the task as a series with the
+   summary in its first commit.
 
-If the task's code has already been committed when
+**Split-series exception:** if the task already landed as a series
+(`git log --oneline --grep='^task-N:'` lists its commits and the log
+is in HEAD's tree), do not stop. Later fixups and review rounds are
+expected there. Merge into the log as usual and tell the user that
+the log change is folded into the first slice with a fixup, as
+`/commit-split`'s "After the split" describes — after the code
+fixups, so the log describes the final state.
+
+Otherwise, if the task's code has already been committed when
 `/wrap-up N` is invoked, stop and tell the user:
 
 > Task-N code was already committed as `<hash>`. The
@@ -424,18 +434,21 @@ Include the next step appropriate to the current review status:
 
 - Before review: the log is ready for an independent `/review`.
 - After review: name any remaining work, or point to `/commit N`
-  when ready. If review was not requested, say it has not been
-  performed and point to `/commit N` when the work is otherwise ready.
+  when ready (`/commit-split N` when the change set reads better as
+  a short series of atomic commits). If review was not requested,
+  say it has not been performed and point to `/commit N` when the
+  work is otherwise ready.
 - For a later contribution, `/wrap-up N` merges findings into this
   same log before committing. `/commit N` derives staging and the
   commit message from the log.
 
-The single-commit rule still matters: the final committed
-summary describes *this exact code state*. `/wrap-up` builds
-the summary; `/commit` makes the atomic commit. Keeping them
-split lets you extend the summary across sessions without
-amend-dance, and the final commit still contains one coherent
-story per task.
+The one-log rule still matters: the final committed summary
+describes *this exact code state*. `/wrap-up` builds the summary;
+`/commit` makes the atomic commit, or `/commit-split` the short
+series of atomic commits with the summary in the first. Keeping
+them split lets you extend the summary across sessions without
+amend-dance, and the history still tells one coherent story per
+task.
 
 In casefile mode, adjust the closing message: the summary lives in
 the casefile, `/commit N` commits code only and links it to the log

@@ -26,8 +26,11 @@ speculate from the code — pull the case file.
    ```
 
    It blames the line, resolves the commit, and prints the linked
-   task log — via git note in casefile mode, via the co-committed
-   log in home mode. Use `--head N` only when the log is very long.
+   task log — via git note in casefile mode; in home mode via the
+   co-committed log or, for a later commit of a task that landed as
+   a series (`/commit-split`), via the `task-N:` subject and the log
+   in that commit's tree. Use `--head N` only when the log is very
+   long.
    Never re-implement the blame → note → log chain by hand; if
    `casefile` is not on PATH, stop and point at the kit's installer.
 

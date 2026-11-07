@@ -93,7 +93,7 @@ stay out.
 | | **Home mode** | **Casefile mode** |
 |---|---|---|
 | Artifacts live | `docs/work/<scope>/` inside the repo | a private casefile repo outside it |
-| Commit ↔ log link | log committed next to the code | git notes (never pushed to origin) |
+| Commit ↔ log link | log committed next to the code; a split series carries it in its first commit, later commits resolve by their `task-N:` subject | git notes (never pushed to origin), one per commit |
 | For | your own projects | client repos that must stay clean — zero committed footprint |
 
 In casefile mode the commit ↔ log link lives in **local git notes**:
@@ -153,7 +153,7 @@ flowchart LR
     S --> I["implement + verify"]
     I --> W["/wrap-up N\nstructured task log"]
     W --> R["/review\nguided review brief"]
-    R --> C["/commit N\ncode + log, staged from the log"]
+    R --> C["/commit N  ·  /commit-split N\ncode + log, staged from the log"]
     C -. "git notes: commit ↔ log" .-> W
     W -. "task N+1 starts from this log" .-> S
 ```
@@ -167,6 +167,16 @@ off through its own log: a fresh session rebuilds the context from it,
 continues, and wraps up again. The same merge joins the wrap-ups of
 different agents on one task into a single log, and absorbs `/review`
 findings before `/commit N` runs.
+
+A task lands as one commit by default. When its change set reads
+better as a short series, `/commit-split N` cuts it into slices by
+intent in dependency order — the refactoring that prepares a change
+and the change itself usually touch the same files and land as two
+slices — each labelled mechanical or behavioral and each verified
+green on its own, with the log in the first commit. The task keeps
+one plan block, one log and one acceptance set; only the history gets
+finer. Review fixes made after the split are folded into the slice
+that owns the lines they touch, before anything is pushed.
 
 Not everything grows from a plan. A sporadic bugfix or chore, one
 commit with no task number, gets the same provenance through the fix
@@ -268,6 +278,7 @@ squash remain in the source repository.
 | `/wrap-up N` | Write or extend the task log; merges across sessions; records plan deviations; fix lane for unplanned work; handles BLOCKED with a re-plan. |
 | `/review` | Guided review brief — quick per task, full before a PR, coverage for large diffs. Cross-checks the log's claims. |
 | `/commit N` | Stage code + log from the log's own record, show the plan, commit after confirmation; casefile mode links via git notes. |
+| `/commit-split N` | Optional alternative to `/commit`: land the task as a short series of atomic commits cut by intent in dependency order, each verified green on its own; log in the first commit; later fixes fold into the slice that owns the lines. |
 | `/finalize-squash SHA` | Casefile mode: run after a PR/MR squash merge, from the original feature branch. Writes a summary with a log index, links the document to the supplied squash commit, and backs up the Git Note. |
 | `/why FILE:LINE` | The demo above, as a skill: blame → commit → log → answer, with the evidence chain cited. |
 

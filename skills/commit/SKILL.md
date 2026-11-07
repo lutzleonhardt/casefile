@@ -11,6 +11,11 @@ The task's wrap-up summary already exists (written by
 `/wrap-up N`). Stage and commit the task's code changes
 together with the summary file in a single commit.
 
+For a task whose change set reads better as several small
+commits, `/commit-split N` is the optional alternative: same
+log, same confirmation, a short series of slices cut by intent,
+each verified green on its own.
+
 This skill **executes** `git add` and `git commit` after
 showing the user the full plan and waiting for explicit
 confirmation. If the user says anything other than a clear

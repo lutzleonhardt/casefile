@@ -4,9 +4,9 @@
 Links customer-repo commits to task logs in a private casefile repo via
 git notes. stdlib only, single file, works on Linux/macOS/Windows.
 
-Companion of the /plan, /start-task, /wrap-up, /commit, /review,
-/finalize-squash and /why skills: the skills carry the judgment,
-this tool the plumbing.
+Companion of the /plan, /start-task, /wrap-up, /commit, /commit-split,
+/review, /finalize-squash and /why skills: the skills carry the
+judgment, this tool the plumbing.
 `casefile skills` installs or updates those skills; the kit's install.sh
 bootstraps both and is safe to re-run as the updater.
 """
@@ -22,7 +22,7 @@ NOTES_REF = "refs/notes/commits"
 KIT_REPO = "lutzleonhardt/casefile"
 VERSION = "0.1.0"
 SKILL_NAMES = ["plan", "start-task", "wrap-up", "review", "commit",
-               "finalize-squash", "why"]
+               "commit-split", "finalize-squash", "why"]
 
 
 def die(msg, code=1):
@@ -219,7 +219,10 @@ def cmd_why(ctx, args):
         refs = [(p, "commit") for p in shown.splitlines()
                 if re.search(r"(^|/)task-log/[^/]+\.md$", p)]
     if not refs:
-        print("no note and no co-committed task log — nothing linked")
+        refs = [(p, "tree") for p in task_logs_in_tree(sha, subject)]
+    if not refs:
+        print("no note, no co-committed task log and no task-N subject "
+              "— nothing linked")
         sys.exit(2)
     for rel, src in refs:
         if src == "note":
@@ -231,7 +234,9 @@ def cmd_why(ctx, args):
             text = path.read_text(encoding="utf-8", errors="replace")
             where = str(path)
         else:
-            print(f"tasklog: {rel} (co-committed)")
+            channel = ("co-committed" if src == "commit"
+                       else "by subject convention")
+            print(f"tasklog: {rel} ({channel})")
             # Read the log as of the commit, not the working tree —
             # correct even after renames or on another branch.
             rc, text = git("show", f"{sha}:{rel}", check=False)
@@ -245,6 +250,20 @@ def cmd_why(ctx, args):
             print(f"  … ({len(lines) - args.head} more lines: {where})")
         else:
             print("  " + "\n  ".join(lines))
+
+
+def task_logs_in_tree(sha, subject):
+    """Home-mode channel for a task that landed as several commits
+    (/commit-split): the log is co-committed once, with the first
+    commit, and every later commit of the series names the task in
+    its subject (`task-N: …`) and holds the log in its tree."""
+    m = re.match(r"task-([\d.]+):", subject)
+    if not m:
+        return []
+    n = re.escape(m.group(1))
+    _, names = git("ls-tree", "-r", "--name-only", sha)
+    return [p for p in names.splitlines()
+            if re.search(rf"(^|/)task-log/task-{n}-[^/]+\.md$", p)]
 
 
 def current_session_paths():
